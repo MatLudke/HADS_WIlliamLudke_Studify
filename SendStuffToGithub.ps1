@@ -31,11 +31,15 @@ git commit -m "feat(studify): implementação avançada do sistema de estudo (ti
   -m "- Correções técnicas: fix setState durante render, escala de gráficos e gravação de duração real nas sessões" `
   -m "Docs: README atualizado e .env.example/.env.local instruções"
 
-# 6) Ensure remote exists (replace remote URL if different)
-$remoteName = (git remote) -split "`n" | Select-String -Pattern '^origin$' -Quiet
-if (-not $remoteName) {
-  git remote add origin https://github.com/MatLudke/FinalAssignment.git
-  Write-Host "Added remote origin"
+# 6) Ensure remote points to the correct repository
+$remoteUrl = "https://github.com/MatLudke/HADS_WIlliamLudke_Studify.git"
+# If origin exists, update it; otherwise add it
+if (git remote | Select-String -Pattern '^origin$' -Quiet) {
+  git remote set-url origin $remoteUrl
+  Write-Host "Updated remote origin to $remoteUrl"
+} else {
+  git remote add origin $remoteUrl
+  Write-Host "Added remote origin $remoteUrl"
 }
 
 # 7) Push branch to origin
