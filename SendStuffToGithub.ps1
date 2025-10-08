@@ -1,82 +1,42 @@
-# Run from PowerShell: .\scripts\create_submission.ps1
+# Go to project root
+cd "C:\Development\BroughtFromFirebaseStudio\ExportingFromFIrebaseStudio"
 
-$srcRoot = "C:\Development\BroughtFromFirebaseStudio\ExportingFromFIrebaseStudio"
-$dest = Join-Path $srcRoot "submission-mvp"
-
-# Clean up previous snapshot if any
-if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
-
-# Create folder structure
-New-Item -ItemType Directory -Path $dest -Force | Out-Null
-New-Item -ItemType Directory -Path (Join-Path $dest "src\lib") -Force | Out-Null
-New-Item -ItemType Directory -Path (Join-Path $dest "src\components\dashboard") -Force | Out-Null
-New-Item -ItemType Directory -Path (Join-Path $dest "src\app\dashboard") -Force | Out-Null
-
-# Files to include (adjust names if needed)
-$files = @(
-  "src\lib\types.ts",
-  "src\lib\firestore.ts",
-  "src\components\dashboard\study-timer.tsx",
-  "src\components\dashboard\activity-list.tsx",
-  "src\app\dashboard\page.tsx",
-  "package.json"
-)
-
-Write-Host "Copying selected files..."
-foreach ($f in $files) {
-  $src = Join-Path $srcRoot $f
-  $dst = Join-Path $dest $f
-  $dstDir = Split-Path $dst -Parent
-  if (-not (Test-Path $dstDir)) { New-Item -ItemType Directory -Path $dstDir -Force | Out-Null }
-  if (Test-Path $src) {
-    Copy-Item -Path $src -Destination $dst -Force
-    Write-Host "  COPIED: $f"
-  } else {
-    Write-Host "  MISSING: $f"
-  }
+# 1) Ensure .env.local is ignored
+if (-not (Test-Path .gitignore)) { New-Item -Path .gitignore -ItemType File | Out-Null }
+if (-not (Select-String -Path .gitignore -Pattern '^\s*\.env\.local\s*$' -Quiet)) {
+  Add-Content .gitignore "`n.env.local"
+  Write-Host ".env.local added to .gitignore"
+} else {
+  Write-Host ".env.local already in .gitignore"
 }
 
-# Add firebase example (sanitized) so teacher knows to add local config
-@"
-// src/lib/firebase.ts.example
-// Create src/lib/firebase.ts from this template with your real Firebase config before running.
-export const firebaseConfig = {
-  apiKey: 'REDACTED',
-  authDomain: 'REDACTED',
-  projectId: 'REDACTED'
-};
-"@ | Out-File -FilePath (Join-Path $dest "src\lib\firebase.ts.example") -Encoding utf8
+# 2) If .env.local was already tracked, remove it from the index (keeps local file)
+git rm --cached .env.local -f 2>$null || Write-Host ".env.local not tracked or already removed from index"
 
-# Minimal README
-@"
-Submission snapshot — Early-stage MVP
+# 3) Create a feature branch
+git checkout -b feat/studify-core
 
-Included:
-- types, sanitized firestore helpers
-- basic activity CRUD (if present)
-- core study timer (if present)
-- package.json
-
-Important:
-- Firebase config is NOT included. Copy src/lib/firebase.ts.example -> src/lib/firebase.ts and fill values before running.
-- To run:
-  1. npm install
-  2. npm run dev
-
-"@ | Out-File -FilePath (Join-Path $dest "README.md") -Encoding utf8
-
-# Initialize git and push
-Set-Location $dest
-git init
+# 4) Stage work (review changes first if you want: git status)
 git add .
-git commit -m "chore(submission): minimal MVP snapshot (sanitized)"
-git branch -M main
 
-# Replace remote URL below if different
-$remote = "https://github.com/MatLudke/FinalAssignment.git"
-git remote add origin $remote
+# 5) Commit with detailed Portuguese message (subject + body)
+git commit -m "feat(studify): implementação avançada do sistema de estudo (timer, relatórios, sincronização e auth)" `
+  -m "- RF01 (autenticação): integração completa de login com Email/Password (registro, verificação por e-mail, recuperação de senha) e preservado Google Sign-In" `
+  -m "- RF02 (atividades): CRUD completo de atividades com prioridade, tags e sincronização em tempo real" `
+  -m "- RF03 (timer/sessions): Pomodoro robusto com persistência de sessão ativa, recuperação, registro de duração real (pausas/stop), validação de atividades e prevenção de sessões órfãs" `
+  -m "- RF05 (histórico/relatórios): histórico detalhado, filtros/pesquisa, gráficos, exportação CSV e formatação consistente de tempo" `
+  -m "- Sincronização global: AppStateContext com updates otimistas e propagação imediata entre componentes" `
+  -m "- UX/UI: redesign do timer, correções de dark mode, acessibilidade e animações" `
+  -m "- Segurança/limpeza: exclusão completa de conta (LGPD) e tratamento correto de Timestamps do Firestore" `
+  -m "- Correções técnicas: fix setState durante render, escala de gráficos e gravação de duração real nas sessões" `
+  -m "Docs: README atualizado e .env.example/.env.local instruções"
 
-Write-Host "Pushing to remote $remote ..."
-git push -u origin main
+# 6) Ensure remote exists (replace remote URL if different)
+$remoteName = (git remote) -split "`n" | Select-String -Pattern '^origin$' -Quiet
+if (-not $remoteName) {
+  git remote add origin https://github.com/MatLudke/FinalAssignment.git
+  Write-Host "Added remote origin"
+}
 
-Write-Host "Done. Submission snapshot created at: $dest"
+# 7) Push branch to origin
+git push -u origin feat/studify-core

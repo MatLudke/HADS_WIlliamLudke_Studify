@@ -7,7 +7,7 @@ export function Logo({ className }: { className?: string }) {
       <div className="bg-primary text-primary-foreground p-2 rounded-lg">
         <Hourglass className="h-7 w-7" />
       </div>
-      <span className="text-2xl font-bold font-headline tracking-tighter">Tempo Certo</span>
+      <span className="text-2xl font-bold font-headline tracking-tighter">Studify</span>
     </div>
   );
 }

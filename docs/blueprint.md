@@ -1,4 +1,4 @@
-# **App Name**: Tempo Certo
+# **App Name**: Studify
 
 ## Core Features:
 

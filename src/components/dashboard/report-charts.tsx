@@ -16,28 +16,24 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { getStudySessions } from "@/lib/firestore"
-import { auth } from "@/lib/firebase"
-import type { User } from "firebase/auth"
 import type { StudySession } from "@/lib/types"
+import { useAppState } from "@/contexts/AppStateContext"
 import { Skeleton } from "@/components/ui/skeleton"
+import { formatDuration } from "@/lib/utils"
 
 export function ReportCharts() {
-  const [user, setUser] = React.useState<User | null>(null);
-  const [reportData, setReportData] = React.useState<{ subject: string, hours: number }[]>([]);
+  const { user } = useAppState();
+  const [reportData, setReportData] = React.useState<{ subject: string, minutes: number }[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(currentUser => {
-      setUser(currentUser);
-      if (currentUser) {
-        fetchReportData(currentUser.uid);
-      } else {
-        setLoading(false);
-        setReportData([]);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+    if (user) {
+      fetchReportData(user.uid);
+    } else {
+      setLoading(false);
+      setReportData([]);
+    }
+  }, [user]);
 
   const fetchReportData = async (userId: string) => {
     try {
@@ -46,12 +42,12 @@ export function ReportCharts() {
       const processedData = sessions.reduce((acc, session) => {
         const existing = acc.find(item => item.subject === session.subject);
         if (existing) {
-          existing.hours += session.duration / 60;
+          existing.minutes += session.duration;
         } else {
-          acc.push({ subject: session.subject, hours: session.duration / 60 });
+          acc.push({ subject: session.subject, minutes: session.duration });
         }
         return acc;
-      }, [] as { subject: string, hours: number }[]).map(item => ({...item, hours: Math.round(item.hours * 10) / 10}));
+      }, [] as { subject: string, minutes: number }[]);
       
       setReportData(processedData);
     } catch (error) {
@@ -66,7 +62,7 @@ export function ReportCharts() {
     <Card>
       <CardHeader>
         <CardTitle>Study Time by Subject</CardTitle>
-        <CardDescription>Hours dedicated to each subject this week.</CardDescription>
+        <CardDescription>Time dedicated to each subject.</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -82,7 +78,11 @@ export function ReportCharts() {
           </div>
         ) : (
           <ChartContainer config={{}} className="min-h-[250px] w-full">
-            <BarChart accessibilityLayer data={reportData}>
+            <BarChart 
+              accessibilityLayer 
+              data={reportData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="subject"
@@ -90,9 +90,46 @@ export function ReportCharts() {
                 tickMargin={10}
                 axisLine={false}
               />
-              <YAxis />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="hours" fill="hsl(var(--primary))" radius={8} />
+              <YAxis 
+                tickFormatter={(value) => formatDuration(value)}
+                domain={[0, (dataMax: number) => {
+                  // Calculate a reasonable upper bound based on the data
+                  const maxValue = Math.max(...reportData.map(d => d.minutes));
+                  if (maxValue <= 5) return 5; // For very small values (≤5 min), cap at 5 min
+                  if (maxValue <= 30) return Math.ceil(maxValue / 5) * 5; // Round up to nearest 5 min
+                  if (maxValue <= 120) return Math.ceil(maxValue / 15) * 15; // Round up to nearest 15 min
+                  return Math.ceil(maxValue / 30) * 30; // Round up to nearest 30 min for larger values
+                }]}
+                tickCount={6}
+              />
+              <ChartTooltip 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const minutes = payload[0].value as number;
+                    return (
+                      <div className="rounded-lg border bg-background p-2 shadow-sm">
+                        <div className="grid gap-2">
+                          <div className="flex flex-col">
+                            <span className="text-[0.70rem] uppercase text-muted-foreground">
+                              {label}
+                            </span>
+                            <span className="font-bold">
+                              {formatDuration(minutes)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Bar 
+                dataKey="minutes" 
+                fill="hsl(var(--primary))" 
+                radius={4}
+                minPointSize={2}
+              />
             </BarChart>
           </ChartContainer>
         )}

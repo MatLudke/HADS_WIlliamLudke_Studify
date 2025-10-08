@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Header } from "@/components/dashboard/header";
 import { ActivityList } from "@/components/dashboard/activity-list";
-import { StudyTimer } from "@/components/dashboard/study-timer";
+import { StudyTimerV2 } from "@/components/dashboard/study-timer-v2";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -54,7 +54,7 @@ export default function DashboardPage() {
             <ActivityList />
           </motion.div>
           <motion.div variants={itemVariants}>
-            <StudyTimer />
+            <StudyTimerV2 />
           </motion.div>
         </motion.div>
       </main>

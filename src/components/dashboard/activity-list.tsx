@@ -30,44 +30,16 @@ import {
 import type { Activity } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { ActivityDialog } from "./activity-dialog"
-import { getActivities, deleteActivity } from "@/lib/firestore"
-import { auth } from "@/lib/firebase"
+import { deleteActivity } from "@/lib/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { User } from "firebase/auth"
+import { useAppState } from "@/contexts/AppStateContext"
 
 export function ActivityList() {
-    const [activities, setActivities] = React.useState<Activity[]>([]);
-    const [loading, setLoading] = React.useState(true);
+    const { activities, loading, user, removeActivityFromState } = useAppState();
     const [openDialog, setOpenDialog] = React.useState(false);
     const [selectedActivity, setSelectedActivity] = React.useState<Activity | null>(null);
-    const [user, setUser] = React.useState<User | null>(null);
     const { toast } = useToast();
-
-    const fetchActivities = React.useCallback(async (userId: string) => {
-      try {
-        setLoading(true);
-        const userActivities = await getActivities(userId);
-        setActivities(userActivities);
-      } catch (error) {
-        toast({ variant: "destructive", title: "Error fetching activities." });
-      } finally {
-        setLoading(false);
-      }
-    }, [toast]);
-    
-    React.useEffect(() => {
-      const unsubscribe = auth.onAuthStateChanged(currentUser => {
-        setUser(currentUser);
-        if (currentUser) {
-          fetchActivities(currentUser.uid);
-        } else {
-          setActivities([]);
-          setLoading(false);
-        }
-      });
-      return () => unsubscribe();
-    }, [fetchActivities]);
 
     const handleEdit = (activity: Activity) => {
         setSelectedActivity(activity);
@@ -81,22 +53,20 @@ export function ActivityList() {
 
     const handleDelete = async (id: string) => {
         try {
+            // Optimistically remove from state for immediate UI feedback
+            removeActivityFromState(id);
             await deleteActivity(id);
             toast({ title: "Activity deleted successfully!" });
-            if (user) {
-              fetchActivities(user.uid);
-            }
         } catch (error) {
             toast({ variant: "destructive", title: "Error deleting activity."});
+            // Note: In case of error, the context will automatically refresh from server
         }
     };
 
     const handleDialogSuccess = () => {
       setOpenDialog(false);
       setSelectedActivity(null);
-      if (user) {
-        fetchActivities(user.uid);
-      }
+      // No need to manually fetch activities - the context handles real-time updates
     };
 
   return (

@@ -26,7 +26,7 @@ import {
 import type { Activity } from "@/lib/types"
 import { addActivity, updateActivity } from "@/lib/firestore"
 import { useToast } from "@/hooks/use-toast"
-import { auth } from "@/lib/firebase"
+import { useAppState } from "@/contexts/AppStateContext"
 
 const activitySchema = z.object({
   title: z.string().min(1, "Title is required."),
@@ -47,6 +47,7 @@ interface ActivityDialogProps {
 export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: ActivityDialogProps) {
   const isEditing = !!activity;
   const { toast } = useToast();
+  const { user, addActivityToState, updateActivityInState } = useAppState();
 
   const {
     control,
@@ -85,7 +86,6 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
   }, [activity, reset, open]);
 
   const onSubmit = async (data: ActivityFormData) => {
-    const user = auth.currentUser;
     if (!user) {
       toast({
         variant: "destructive",
@@ -97,10 +97,24 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
 
     try {
       if (isEditing && activity) {
+        // Optimistically update the state
+        updateActivityInState(activity.id, { ...data, updatedAt: new Date() });
         await updateActivity(activity.id, { ...data, status: activity.status });
         toast({ title: "Activity updated successfully!" });
       } else {
-        await addActivity(user.uid, { ...data, status: 'todo' });
+        const newActivity: Activity = {
+          id: '', // Will be set by Firestore
+          ...data,
+          status: 'todo',
+          updatedAt: new Date(),
+          userId: user.uid
+        };
+        
+        // Create activity in Firestore first to get the ID
+        const activityId = await addActivity(user.uid, { ...data, status: 'todo' });
+        
+        // Then add to state with the correct ID
+        addActivityToState({ ...newActivity, id: activityId });
         toast({ title: "Activity added successfully!" });
       }
       onSuccess();
@@ -110,6 +124,7 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
         title: "Error saving activity",
         description: "An error occurred. Please try again.",
       });
+      // In case of error, the context will automatically refresh from server
     }
   };
 

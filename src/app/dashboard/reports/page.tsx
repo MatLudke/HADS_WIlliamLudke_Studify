@@ -5,49 +5,47 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Header } from "@/components/dashboard/header";
 import { ReportCharts } from "@/components/dashboard/report-charts";
+import { SessionHistory } from "@/components/dashboard/session-history";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getStudySessions, getActivities } from '@/lib/firestore';
-import { auth } from '@/lib/firebase';
-import type { User } from 'firebase/auth';
-import type { StudySession, Activity } from '@/lib/types';
+import { Button } from "@/components/ui/button";
+import { getStudySessions, exportStudySessionsCSV, exportActivitiesCSV } from '@/lib/firestore';
+import type { StudySession } from '@/lib/types';
+import { useAppState } from '@/contexts/AppStateContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Download } from 'lucide-react';
+import { formatStudyTime } from '@/lib/utils';
 
 interface ReportStats {
     sessionsCompleted: number;
-    focusHours: number;
+    focusMinutes: number; // Changed from focusHours to focusMinutes
     efficiency: number;
 }
 
 export default function ReportsPage() {
+    const { activities, user } = useAppState();
     const [stats, setStats] = useState<ReportStats>({
         sessionsCompleted: 0,
-        focusHours: 0,
+        focusMinutes: 0,
         efficiency: 0,
     });
     const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState<User | null>(null);
 
     useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-            setUser(currentUser);
-            if (currentUser) {
-                await fetchReportData(currentUser.uid);
-            } else {
-                setLoading(false);
-                setStats({ sessionsCompleted: 0, focusHours: 0, efficiency: 0 });
-            }
-        });
-        return () => unsubscribe();
-    }, []);
+        if (user) {
+            fetchReportData(user.uid);
+        } else {
+            setLoading(false);
+            setStats({ sessionsCompleted: 0, focusMinutes: 0, efficiency: 0 });
+        }
+    }, [user, activities]); // Recalculate when activities change
 
     const fetchReportData = async (userId: string) => {
         try {
             setLoading(true);
             const sessions: StudySession[] = await getStudySessions(userId);
-            const activities: Activity[] = await getActivities(userId);
 
             const totalSessions = sessions.length;
-            const totalHours = sessions.reduce((sum, session) => sum + session.duration, 0) / 60;
+            const totalMinutes = sessions.reduce((sum, session) => sum + session.duration, 0);
             
             let efficiency = 0;
             if (activities.length > 0) {
@@ -57,15 +55,51 @@ export default function ReportsPage() {
 
             setStats({
                 sessionsCompleted: totalSessions,
-                focusHours: Math.round(totalHours * 10) / 10,
+                focusMinutes: totalMinutes,
                 efficiency: efficiency,
             });
 
         } catch (error) {
             console.error("Failed to fetch report data:", error);
-            setStats({ sessionsCompleted: 0, focusHours: 0, efficiency: 0 });
+            setStats({ sessionsCompleted: 0, focusMinutes: 0, efficiency: 0 });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleExportSessions = async () => {
+        if (!user) return;
+        try {
+            const csvContent = await exportStudySessionsCSV(user.uid);
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `study-sessions-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Failed to export sessions:', error);
+        }
+    };
+
+    const handleExportActivities = async () => {
+        if (!user) return;
+        try {
+            const csvContent = await exportActivitiesCSV(user.uid);
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `activities-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Failed to export activities:', error);
         }
     };
 
@@ -118,7 +152,7 @@ export default function ReportsPage() {
                     >
                         <Card>
                             <CardHeader>
-                                <CardTitle>Focus Hours</CardTitle>
+                                <CardTitle>Focus Time</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 {loading ? (
@@ -130,7 +164,7 @@ export default function ReportsPage() {
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ duration: 0.5, delay: 0.6, ease: "backOut" }}
                                     >
-                                        {stats.focusHours}h
+                                        {formatStudyTime(stats.focusMinutes)}
                                     </motion.div>
                                 )}
                                 <p className="text-xs text-muted-foreground">Total time spent in focus sessions.</p>
@@ -165,11 +199,33 @@ export default function ReportsPage() {
                     </motion.div>
                 </motion.div>
                 <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.8, ease: "easeOut" }}
+                    className="flex gap-4 justify-center"
+                >
+                    <Button onClick={handleExportSessions} disabled={!user} variant="outline">
+                        <Download className="mr-2 h-4 w-4" />
+                        Export Sessions
+                    </Button>
+                    <Button onClick={handleExportActivities} disabled={!user} variant="outline">
+                        <Download className="mr-2 h-4 w-4" />
+                        Export Activities  
+                    </Button>
+                </motion.div>
+                <motion.div
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7, delay: 0.6, ease: "easeOut" }}
                 >
                     <ReportCharts />
+                </motion.div>
+                <motion.div
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 0.8, ease: "easeOut" }}
+                >
+                    <SessionHistory user={user} />
                 </motion.div>
             </motion.div>
         </main>

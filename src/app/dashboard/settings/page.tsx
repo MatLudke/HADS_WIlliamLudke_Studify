@@ -32,12 +32,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { NotificationSettings } from '@/components/dashboard/notification-settings';
 
 
 export default function SettingsPage() {
   const { setTheme, theme } = useTheme();
   const [open, setOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isClearingHistory, setIsClearingHistory] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
@@ -45,6 +47,34 @@ export default function SettingsPage() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const handleClearSessionHistory = async () => {
+    setIsClearingHistory(true);
+    const user = auth.currentUser;
+    if (!user) {
+      toast({ variant: "destructive", title: "No user logged in." });
+      setIsClearingHistory(false);
+      return;
+    }
+
+    try {
+      const { deleteSessionHistory } = await import('@/lib/firestore');
+      await deleteSessionHistory(user.uid);
+
+      toast({ 
+        title: "Session history cleared",
+        description: "All study sessions and reports have been removed. Your activities are preserved."
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to clear session history",
+        description: error.message || "Please try again.",
+      });
+    } finally {
+      setIsClearingHistory(false);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
@@ -57,13 +87,18 @@ export default function SettingsPage() {
     }
 
     try {
+      // First delete all user data from Firestore
+      const { deleteUserAccount } = await import('@/lib/firestore');
+      await deleteUserAccount(user.uid);
+
       // Re-authentication is required for security-sensitive operations
       const provider = new GoogleAuthProvider();
       await reauthenticateWithPopup(user, provider);
       
+      // Finally delete the user account
       await deleteUser(user);
 
-      toast({ title: "Account deleted successfully." });
+      toast({ title: "Account and all data deleted successfully." });
       router.push('/login');
 
     } catch (error: any) {
@@ -104,8 +139,10 @@ export default function SettingsPage() {
             transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
           >
             <Tabs defaultValue="appearance" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="appearance">Appearance</TabsTrigger>
+                <TabsTrigger value="notifications">Notifications</TabsTrigger>
+                <TabsTrigger value="data">Data</TabsTrigger>
                 <TabsTrigger value="danger">Danger Zone</TabsTrigger>
               </TabsList>
               <TabsContent value="appearance">
@@ -191,6 +228,48 @@ export default function SettingsPage() {
                           </motion.div>
                         </RadioGroup>
                       )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+              <TabsContent value="notifications">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+                >
+                  <NotificationSettings />
+                </motion.div>
+              </TabsContent>
+              <TabsContent value="data">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+                >
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Session History</CardTitle>
+                      <CardDescription>
+                        Manage your study session data and reports.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <h4 className="font-medium">Clear Session History</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Remove all study session data and reports. Activities will be preserved.
+                          </p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          onClick={handleClearSessionHistory}
+                          disabled={isClearingHistory}
+                        >
+                          {isClearingHistory ? "Clearing..." : "Clear History"}
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>

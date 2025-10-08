@@ -20,8 +20,8 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import type { Activity, TimerSettings } from '@/lib/types';
-import { getActivities, addStudySession } from '@/lib/firestore';
+import type { Activity, TimerSettings, ActiveSession } from '@/lib/types';
+import { getActivities, addStudySession, startActiveSession, updateActiveSession, completeActiveSession, getActiveSession } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import type { User } from 'firebase/auth';
 import { TimerSettingsDialog } from './timer-settings';
@@ -49,6 +49,7 @@ export function StudyTimer() {
   const [activities, setActivities] = React.useState<Activity[]>([]);
   const [selectedActivityId, setSelectedActivityId] = React.useState<string | null>(null);
   const [user, setUser] = React.useState<User | null>(null);
+  const [activeSessionId, setActiveSessionId] = React.useState<string | null>(null);
 
   // Load settings from localStorage
   React.useEffect(() => {
@@ -115,8 +116,30 @@ export function StudyTimer() {
       if (currentUser) {
         const userActivities = await getActivities(currentUser.uid);
         setActivities(userActivities);
+        
+        // Check for existing active session
+        try {
+          const activeSession = await getActiveSession(currentUser.uid);
+          if (activeSession) {
+            setActiveSessionId(activeSession.id);
+            setSelectedActivityId(activeSession.activityId);
+            setMode(activeSession.mode as TimerMode);
+            // Resume timer state based on last update
+            const now = Date.now();
+            const lastUpdate = activeSession.lastUpdated?.getTime() || now;
+            const timeSinceUpdate = Math.floor((now - lastUpdate) / 1000);
+            const newTimeLeft = Math.max(0, activeSession.currentTime - timeSinceUpdate);
+            setTimeLeft(newTimeLeft);
+            if (newTimeLeft > 0) {
+              setIsActive(true);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading active session:', error);
+        }
       } else {
         setActivities([]);
+        setActiveSessionId(null);
       }
     });
     return () => unsubscribe();
@@ -155,11 +178,16 @@ export function StudyTimer() {
         const activity = activities.find(a => a.id === selectedActivityId);
         if (activity) {
           try {
+            // Calculate actual study time based on how much time was spent
+            const totalTime = getTotalTime();
+            const actualDuration = Math.round((totalTime - timeLeft) / 60); // Convert to minutes
+            
             await addStudySession(user.uid, {
               activityId: selectedActivityId,
-              startTime: sessionStartTime,
-              endTime: new Date(),
-              duration: settings.pomodoroMinutes,
+              startAt: sessionStartTime,
+              endAt: new Date(),
+              duration: actualDuration,
+              mode: 'pomodoro',
               subject: activity.subject,
             });
             toast({ title: "Study session saved!" });
@@ -198,7 +226,7 @@ export function StudyTimer() {
     }
   };
 
-  const toggleTimer = () => {
+  const toggleTimer = async () => {
     if (!user) {
       toast({
         variant: "destructive",
@@ -216,15 +244,43 @@ export function StudyTimer() {
       return;
     }
     
-    if (!isActive) {
+    if (!isActive && !activeSessionId) {
+      // Starting new session
       setSessionStartTime(new Date());
+      try {
+        const sessionId = await startActiveSession(user.uid, selectedActivityId || '', mode);
+        setActiveSessionId(sessionId);
+      } catch (error) {
+        console.error('Failed to start session:', error);
+        toast({ variant: "destructive", title: "Failed to start session" });
+        return;
+      }
     }
     
     setIsActive(!isActive);
   };
 
-  const resetTimer = () => {
+  const resetTimer = async () => {
     setIsActive(false);
+    
+    // Clean up active session if exists
+    if (activeSessionId && user) {
+      try {
+        await completeActiveSession(activeSessionId, user.uid, {
+          activityId: selectedActivityId || '',
+          startAt: sessionStartTime || new Date(),
+          endAt: new Date(),
+          duration: 0, // Reset, so no duration
+          mode,
+          subject: 'Cancelled',
+          notes: 'Session was reset'
+        });
+        setActiveSessionId(null);
+      } catch (error) {
+        console.error('Error cleaning up session:', error);
+      }
+    }
+    
     setMode('pomodoro');
     setTimeLeft(getTimerDuration('pomodoro', settings));
     setPomodoros(0);
