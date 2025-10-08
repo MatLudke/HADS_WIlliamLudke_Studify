@@ -2,6 +2,7 @@
 "use client"
 
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Header } from "@/components/dashboard/header";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,99 +83,140 @@ export default function SettingsPage() {
     <>
       <Header title="Settings" />
       <main className="flex-1 overflow-auto p-4 md:p-6 pt-40">
-        <div className="mx-auto w-full max-w-2xl">
+        <motion.div 
+          className="mx-auto w-full max-w-2xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+          >
             <h1 className="text-3xl font-headline font-bold tracking-tight mb-2">Settings</h1>
             <p className="text-muted-foreground mb-8">Manage your account and application preferences.</p>
+          </motion.div>
 
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+          >
             <Tabs defaultValue="appearance" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="appearance">Appearance</TabsTrigger>
-                    <TabsTrigger value="danger">Danger Zone</TabsTrigger>
-                </TabsList>
-                <TabsContent value="appearance">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Appearance</CardTitle>
-                            <CardDescription>
-                                Customize the look and feel of the application.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                        {!isMounted ? (
-                            <div className="grid max-w-md grid-cols-2 gap-8 pt-2 mx-auto">
-                                <Skeleton className="h-[150px] w-full" />
-                                <Skeleton className="h-[150px] w-full" />
-                            </div>
-                        ) : (
-                            <RadioGroup
-                            defaultValue={theme}
-                            onValueChange={setTheme}
-                            className="grid max-w-md grid-cols-2 gap-8 pt-2 mx-auto"
-                            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="appearance">Appearance</TabsTrigger>
+                <TabsTrigger value="danger">Danger Zone</TabsTrigger>
+              </TabsList>
+              <TabsContent value="appearance">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+                >
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Appearance</CardTitle>
+                      <CardDescription>
+                        Customize the look and feel of the application.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {!isMounted ? (
+                        <div className="grid max-w-md grid-cols-2 gap-8 pt-2 mx-auto">
+                          <Skeleton className="h-[150px] w-full" />
+                          <Skeleton className="h-[150px] w-full" />
+                        </div>
+                      ) : (
+                        <RadioGroup
+                          defaultValue={theme}
+                          onValueChange={setTheme}
+                          className="grid max-w-md grid-cols-2 gap-8 pt-2 mx-auto"
+                        >
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.4, delay: 0.5, ease: "easeOut" }}
+                          >
                             <Label className="[&:has([data-state=checked])>div]:border-primary">
-                                <RadioGroupItem value="light" className="sr-only" />
-                                <div className="items-center rounded-md border-2 border-muted p-1 hover:border-accent">
+                              <RadioGroupItem value="light" className="sr-only" />
+                              <div className="items-center rounded-md border-2 border-muted p-1 hover:border-accent transition-all duration-300">
                                 <div className="space-y-2 rounded-sm bg-[#ecedef] p-2">
-                                    <div className="space-y-2 rounded-md bg-white p-2 shadow-sm">
+                                  <div className="space-y-2 rounded-md bg-white p-2 shadow-sm">
                                     <div className="h-2 w-4/5 rounded-lg bg-[#ecedef]" />
                                     <div className="h-2 w-full rounded-lg bg-[#ecedef]" />
-                                    </div>
-                                    <div className="flex items-center space-x-2 rounded-md bg-white p-2 shadow-sm">
+                                  </div>
+                                  <div className="flex items-center space-x-2 rounded-md bg-white p-2 shadow-sm">
                                     <div className="h-4 w-4 rounded-full bg-[#ecedef]" />
                                     <div className="h-2 w-full rounded-lg bg-[#ecedef]" />
-                                    </div>
-                                    <div className="flex items-center space-x-2 rounded-md bg-white p-2 shadow-sm">
+                                  </div>
+                                  <div className="flex items-center space-x-2 rounded-md bg-white p-2 shadow-sm">
                                     <div className="h-4 w-4 rounded-full bg-[#ecedef]" />
                                     <div className="h-2 w-full rounded-lg bg-[#ecedef]" />
-                                    </div>
+                                  </div>
                                 </div>
-                                </div>
-                                <span className="block w-full p-2 text-center font-normal">
+                              </div>
+                              <span className="block w-full p-2 text-center font-normal">
                                 Light
-                                </span>
+                              </span>
                             </Label>
+                          </motion.div>
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.4, delay: 0.6, ease: "easeOut" }}
+                          >
                             <Label className="[&:has([data-state=checked])>div]:border-primary">
-                                <RadioGroupItem value="dark" className="sr-only" />
-                                <div className="items-center rounded-md border-2 border-muted bg-popover p-1 hover:border-accent">
+                              <RadioGroupItem value="dark" className="sr-only" />
+                              <div className="items-center rounded-md border-2 border-muted bg-popover p-1 hover:border-accent transition-all duration-300">
                                 <div className="space-y-2 rounded-sm bg-slate-950 p-2">
-                                    <div className="space-y-2 rounded-md bg-slate-800 p-2 shadow-sm">
+                                  <div className="space-y-2 rounded-md bg-slate-800 p-2 shadow-sm">
                                     <div className="h-2 w-4/5 rounded-lg bg-slate-400" />
                                     <div className="h-2 w-full rounded-lg bg-slate-400" />
-                                    </div>
-                                    <div className="flex items-center space-x-2 rounded-md bg-slate-800 p-2 shadow-sm">
+                                  </div>
+                                  <div className="flex items-center space-x-2 rounded-md bg-slate-800 p-2 shadow-sm">
                                     <div className="h-4 w-4 rounded-full bg-slate-400" />
                                     <div className="h-2 w-full rounded-lg bg-slate-400" />
-                                    </div>
-                                    <div className="flex items-center space-x-2 rounded-md bg-slate-800 p-2 shadow-sm">
+                                  </div>
+                                  <div className="flex items-center space-x-2 rounded-md bg-slate-800 p-2 shadow-sm">
                                     <div className="h-4 w-4 rounded-full bg-slate-400" />
                                     <div className="h-2 w-full rounded-lg bg-slate-400" />
-                                    </div>
+                                  </div>
                                 </div>
-                                </div>
-                                <span className="block w-full p-2 text-center font-normal">
+                              </div>
+                              <span className="block w-full p-2 text-center font-normal">
                                 Dark
-                                </span>
+                              </span>
                             </Label>
-                            </RadioGroup>
-                        )}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-                <TabsContent value="danger">
-                     <Card className="border-destructive">
-                        <CardHeader>
-                            <CardTitle>Delete Account</CardTitle>
-                            <CardDescription>
-                                This action is permanent and cannot be undone. This will permanently delete your account and remove all your data from our servers.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardFooter>
-                            <Button variant="destructive" onClick={() => setOpen(true)}>Delete My Account</Button>
-                        </CardFooter>
-                    </Card>
-                </TabsContent>
+                          </motion.div>
+                        </RadioGroup>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+              <TabsContent value="danger">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+                >
+                  <Card className="border-destructive">
+                    <CardHeader>
+                      <CardTitle>Delete Account</CardTitle>
+                      <CardDescription>
+                        This action is permanent and cannot be undone. This will permanently delete your account and remove all your data from our servers.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardFooter>
+                      <Button variant="destructive" onClick={() => setOpen(true)}>Delete My Account</Button>
+                    </CardFooter>
+                  </Card>
+                </motion.div>
+              </TabsContent>
             </Tabs>
-        </div>
+          </motion.div>
+        </motion.div>
       </main>
        <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>

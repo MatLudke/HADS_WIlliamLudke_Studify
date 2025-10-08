@@ -10,21 +10,31 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.15,
+      staggerChildren: 0.2,
       delayChildren: 0.1,
+      duration: 0.6,
+      ease: "easeOut",
     },
   },
 };
 
 const itemVariants = {
-  hidden: { y: 20, opacity: 0 },
+  hidden: { 
+    y: 30, 
+    opacity: 0, 
+    scale: 0.95,
+    filter: "blur(4px)",
+  },
   visible: {
     y: 0,
     opacity: 1,
+    scale: 1,
+    filter: "blur(0px)",
     transition: {
       type: "spring",
-      stiffness: 100,
-      damping: 15,
+      stiffness: 200,
+      damping: 25,
+      duration: 0.8,
     },
   },
 };

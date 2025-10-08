@@ -17,3 +17,13 @@ export type StudySession = {
   duration: number; // in minutes
   subject: string;
 };
+
+export type TimerSettings = {
+  pomodoroMinutes: number;
+  shortBreakMinutes: number;
+  longBreakMinutes: number;
+  pomodorosBeforeLongBreak: number;
+  autoStartBreaks: boolean;
+  autoStartPomodoros: boolean;
+  playSound: boolean;
+};

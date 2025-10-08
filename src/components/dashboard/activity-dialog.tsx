@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -115,70 +116,185 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <DialogHeader>
-              <DialogTitle>{isEditing ? 'Edit Activity' : 'Add Activity'}</DialogTitle>
-              <DialogDescription>
-                {isEditing ? 'Update the details of your study activity.' : 'Fill in the details for the new study activity.'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="title" className="text-right">
-                  Title
-                </Label>
-                <div className="col-span-3">
-                  <Input id="title" {...register("title")} />
-                  {errors.title && <p className="text-destructive text-xs mt-1">{errors.title.message}</p>}
-                </div>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="subject" className="text-right">
-                  Subject
-                </Label>
-                 <div className="col-span-3">
-                  <Input id="subject" {...register("subject")} />
-                  {errors.subject && <p className="text-destructive text-xs mt-1">{errors.subject.message}</p>}
-                </div>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="duration" className="text-right">
-                  Duration (min)
-                </Label>
-                <div className="col-span-3">
-                  <Input id="duration" type="number" {...register("estimatedDuration")} />
-                  {errors.estimatedDuration && <p className="text-destructive text-xs mt-1">{errors.estimatedDuration.message}</p>}
-                </div>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="priority" className="text-right">
-                  Priority
-                </Label>
-                <Controller
-                  name="priority"
-                  control={control}
-                  render={({ field }) => (
-                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save"}
-              </Button>
-            </DialogFooter>
-          </form>
+      <DialogContent className="sm:max-w-[425px] overflow-hidden">
+        <AnimatePresence mode="wait">
+          {open && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ 
+                duration: 0.3, 
+                ease: [0.16, 1, 0.3, 1] 
+              }}
+            >
+              <form onSubmit={handleSubmit(onSubmit)}>
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 }}
+                >
+                  <DialogHeader>
+                    <DialogTitle>{isEditing ? 'Edit Activity' : 'Add Activity'}</DialogTitle>
+                    <DialogDescription>
+                      {isEditing ? 'Update the details of your study activity.' : 'Fill in the details for the new study activity.'}
+                    </DialogDescription>
+                  </DialogHeader>
+                </motion.div>
+                
+                <motion.div 
+                  className="grid gap-4 py-4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                >
+                  <motion.div 
+                    className="grid grid-cols-4 items-center gap-4"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.3 }}
+                  >
+                    <Label htmlFor="title" className="text-right">
+                      Title
+                    </Label>
+                    <div className="col-span-3">
+                      <Input 
+                        id="title" 
+                        {...register("title")} 
+                        className="transition-all duration-300 focus:shadow-md"
+                      />
+                      <AnimatePresence>
+                        {errors.title && (
+                          <motion.p 
+                            className="text-destructive text-xs mt-1"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            {errors.title.message}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                  
+                  <motion.div 
+                    className="grid grid-cols-4 items-center gap-4"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.4 }}
+                  >
+                    <Label htmlFor="subject" className="text-right">
+                      Subject
+                    </Label>
+                    <div className="col-span-3">
+                      <Input 
+                        id="subject" 
+                        {...register("subject")} 
+                        className="transition-all duration-300 focus:shadow-md"
+                      />
+                      <AnimatePresence>
+                        {errors.subject && (
+                          <motion.p 
+                            className="text-destructive text-xs mt-1"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            {errors.subject.message}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                  
+                  <motion.div 
+                    className="grid grid-cols-4 items-center gap-4"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.5 }}
+                  >
+                    <Label htmlFor="duration" className="text-right">
+                      Duration (min)
+                    </Label>
+                    <div className="col-span-3">
+                      <Input 
+                        id="duration" 
+                        type="number" 
+                        {...register("estimatedDuration")} 
+                        className="transition-all duration-300 focus:shadow-md"
+                      />
+                      <AnimatePresence>
+                        {errors.estimatedDuration && (
+                          <motion.p 
+                            className="text-destructive text-xs mt-1"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            {errors.estimatedDuration.message}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                  
+                  <motion.div 
+                    className="grid grid-cols-4 items-center gap-4"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.6 }}
+                  >
+                    <Label htmlFor="priority" className="text-right">
+                      Priority
+                    </Label>
+                    <Controller
+                      name="priority"
+                      control={control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <SelectTrigger className="col-span-3 transition-all duration-300 hover:shadow-md">
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </motion.div>
+                </motion.div>
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.7 }}
+                >
+                  <DialogFooter>
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Button 
+                        type="submit" 
+                        disabled={isSubmitting}
+                        className="transition-all duration-300 hover:shadow-md"
+                      >
+                        {isSubmitting ? "Saving..." : "Save"}
+                      </Button>
+                    </motion.div>
+                  </DialogFooter>
+                </motion.div>
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </DialogContent>
     </Dialog>
   )

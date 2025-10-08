@@ -2,6 +2,7 @@
 "use client"
 
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Header } from "@/components/dashboard/header";
 import { ReportCharts } from "@/components/dashboard/report-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,47 +69,110 @@ export default function ReportsPage() {
         }
     };
 
-
     return (
       <>
         <Header title="Reports" />
         <main className="flex-1 overflow-auto p-6 md:p-8 pt-24 md:pt-32 lg:pt-40">
-            <div className="grid gap-6">
-                <div className="grid gap-6 md:grid-cols-3">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Sessions Completed</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {loading ? <Skeleton className="h-10 w-16" /> : <div className="text-4xl font-bold">{stats.sessionsCompleted}</div>}
-                            <p className="text-xs text-muted-foreground">Total study sessions logged.</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Focus Hours</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {loading ? <Skeleton className="h-10 w-24" /> : <div className="text-4xl font-bold">{stats.focusHours}h</div>}
-                            <p className="text-xs text-muted-foreground">Total time spent in focus sessions.</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Efficiency</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                           {loading ? <Skeleton className="h-10 w-20" /> : <div className="text-4xl font-bold">{stats.efficiency}%</div>}
-                            <p className="text-xs text-muted-foreground">Percentage of completed activities.</p>
-                        </CardContent>
-                    </Card>
-                </div>
-                <ReportCharts />
-            </div>
+            <motion.div 
+                className="grid gap-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+            >
+                <motion.div 
+                    className="grid gap-6 md:grid-cols-3"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+                >
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+                    >
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Sessions Completed</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {loading ? (
+                                    <Skeleton className="h-10 w-16" />
+                                ) : (
+                                    <motion.div 
+                                        className="text-4xl font-bold"
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ duration: 0.5, delay: 0.5, ease: "backOut" }}
+                                    >
+                                        {stats.sessionsCompleted}
+                                    </motion.div>
+                                )}
+                                <p className="text-xs text-muted-foreground">Total study sessions logged.</p>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
+                    >
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Focus Hours</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {loading ? (
+                                    <Skeleton className="h-10 w-24" />
+                                ) : (
+                                    <motion.div 
+                                        className="text-4xl font-bold"
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ duration: 0.5, delay: 0.6, ease: "backOut" }}
+                                    >
+                                        {stats.focusHours}h
+                                    </motion.div>
+                                )}
+                                <p className="text-xs text-muted-foreground">Total time spent in focus sessions.</p>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
+                    >
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Efficiency</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {loading ? (
+                                    <Skeleton className="h-10 w-20" />
+                                ) : (
+                                    <motion.div 
+                                        className="text-4xl font-bold"
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ duration: 0.5, delay: 0.7, ease: "backOut" }}
+                                    >
+                                        {stats.efficiency}%
+                                    </motion.div>
+                                )}
+                                <p className="text-xs text-muted-foreground">Percentage of completed activities.</p>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                </motion.div>
+                <motion.div
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 0.6, ease: "easeOut" }}
+                >
+                    <ReportCharts />
+                </motion.div>
+            </motion.div>
         </main>
       </>
     );
-  }
-
-
-    
+}
