@@ -41,7 +41,7 @@ export const deleteActivity = async (id: string) => {
     revalidatePath("/dashboard");
 };
 
-// Periodic session tracking for background resilience
+// Reminder: keep active session updates for background resilience
 export const updateActiveSession = async (sessionId: string, progress: { currentTime: number, duration: number, mode: string }) => {
     const docRef = doc(db, "activeSessions", sessionId);
     await updateDoc(docRef, {
@@ -218,7 +218,7 @@ export const deleteSessionHistory = async (userId: string) => {
     }
 };
 
-// FCM Token Management
+// Reminder: FCM token storage for browser push
 export const saveFCMToken = async (userId: string, token: string) => {
     if (!userId) throw new Error("User ID is required");
     

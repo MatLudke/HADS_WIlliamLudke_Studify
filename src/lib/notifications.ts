@@ -4,9 +4,8 @@ import { getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging
 import { app } from './firebase';
 import type { Activity, NotificationPreferences, ScheduledNotification } from './types';
 
-// VAPID key for web push (you'll need to generate this in Firebase Console)
-// For now using a placeholder - in production you'll need to generate this
-const VAPID_KEY = 'BHx-example-replace-with-real-vapid-key-from-firebase-console';
+// Read VAPID key from environment for browser push (set NEXT_PUBLIC_FCM_VAPID_KEY)
+const VAPID_KEY = process.env.NEXT_PUBLIC_FCM_VAPID_KEY || 'BHx-example-replace-with-real-vapid-key-from-firebase-console';
 
 export class NotificationService {
   private messaging: Messaging | null = null;
@@ -16,11 +15,14 @@ export class NotificationService {
   constructor() {
     this.preferences = this.loadPreferences();
     
-    // Initialize Firebase Messaging if in browser environment
+  // Init FCM in browser environment
     if (typeof window !== 'undefined') {
       try {
         this.messaging = getMessaging(app);
-        this.initializeFCM();
+        // Only initialize fully if permission already granted
+        if (Notification.permission === 'granted') {
+          this.initializeFCM();
+        }
       } catch (error) {
         console.error('Failed to initialize Firebase Messaging:', error);
       }
@@ -69,19 +71,47 @@ export class NotificationService {
     if (!this.messaging) return;
 
     try {
-      // Request notification permission
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        console.log('Notification permission denied');
+      // Double-check permission before proceeding
+      if (Notification.permission !== 'granted') {
+        console.log('Cannot initialize FCM: permission not granted');
         return;
       }
 
-      // Register service worker
+      // Register service worker (assumes permission already granted)
       if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        console.log('Service Worker registered:', registration);
+        // Check if SW is already registered
+        let registration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
+        
+        if (!registration) {
+          console.log('Registering new service worker...');
+          registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+            scope: '/'
+          });
+          console.log('Service Worker registered:', registration);
+        } else {
+          console.log('Service Worker already registered:', registration);
+        }
+        
+        // Wait for service worker to be active/ready
+        if (registration.installing) {
+          console.log('SW installing, waiting...');
+          await new Promise((resolve) => {
+            registration!.installing!.addEventListener('statechange', function() {
+              if (this.state === 'activated') resolve(true);
+            });
+          });
+        } else if (registration.waiting) {
+          console.log('SW waiting, activating...');
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } else if (registration.active) {
+          console.log('SW already active');
+        }
+        
+        // Ensure service worker is ready
+        await navigator.serviceWorker.ready;
+        console.log('Service Worker ready');
       }
-
+      
       // Get FCM token
       const token = await getToken(this.messaging, {
         vapidKey: VAPID_KEY,
@@ -163,9 +193,18 @@ export class NotificationService {
       const permission = await Notification.requestPermission();
       const granted = permission === 'granted';
       
-      if (granted && !this.preferences.enabled) {
+      if (granted) {
         this.preferences.enabled = true;
         this.savePreferences(this.preferences);
+        
+        // Initialize FCM now that permission is granted
+        console.log('Permission granted, initializing FCM...');
+        try {
+          await this.initializeFCM();
+          console.log('FCM initialization complete, token:', this.fcmToken);
+        } catch (err) {
+          console.error('Failed to init FCM after permission:', err);
+        }
       }
       
       return granted;
@@ -241,8 +280,7 @@ export class NotificationService {
   }
 
   public async scheduleStudyReminder(activity: Activity, scheduledFor: Date): Promise<void> {
-    // For now, we'll use setTimeout for local scheduling
-    // In production, this would be handled by Firebase Functions
+  // Reminder: local scheduling using setTimeout; use cloud functions in prod
     const now = new Date();
     const timeUntilReminder = scheduledFor.getTime() - now.getTime();
 
@@ -258,6 +296,17 @@ export class NotificationService {
     const body = 'Studify notifications are working correctly!';
     
     await this.showNotification(title, body, 'test');
+  }
+
+  // Show a missed-goal notification: e.g. weekly goal progress reminder
+  public async showMissedGoalNotification(completedMinutes: number, goalMinutes: number): Promise<void> {
+    if (!this.preferences.enabled) return;
+
+    const pct = Math.round((completedMinutes / Math.max(goalMinutes, 1)) * 100);
+    const title = '📅 Study Goal Reminder';
+    const body = `You've completed ${completedMinutes} minutes (${pct}% of your ${Math.round(goalMinutes/60)}h goal). Keep going!`;
+
+    await this.showNotification(title, body, 'missed-goal');
   }
 
   public isSupported(): boolean {

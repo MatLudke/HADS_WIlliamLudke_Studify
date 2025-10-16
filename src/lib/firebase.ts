@@ -2,9 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
+// Reminder: add other Firebase SDKs here if needed
 // Your web app's Firebase configuration
 const firebaseConfig = {
   "projectId": "tempo-certo-qf64u",

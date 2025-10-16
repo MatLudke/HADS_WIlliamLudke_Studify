@@ -41,16 +41,34 @@ export function NotificationSettings() {
     setLoading(true);
     try {
       const granted = await notificationService.requestPermission();
-      setPermission(granted ? 'granted' : 'denied');
       
       if (granted) {
+        // Wait a moment for FCM token to be retrieved
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Update state immediately
+        setPermission('granted');
+        handlePreferenceChange('enabled', true);
+        
+        // Poll for token (it might take a moment)
+        let attempts = 0;
+        const maxAttempts = 10;
+        while (attempts < maxAttempts) {
+          const token = notificationService.getFCMToken();
+          if (token) {
+            setFcmToken(token);
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, 500));
+          attempts++;
+        }
+        
         toast({
           title: "Notifications Enabled! 🔔",
           description: "You'll now receive study reminders and timer notifications.",
         });
-        handlePreferenceChange('enabled', true);
-        setFcmToken(notificationService.getFCMToken());
       } else {
+        setPermission('denied');
         toast({
           title: "Permission Denied",
           description: "You can enable notifications later in your browser settings.",
@@ -58,6 +76,7 @@ export function NotificationSettings() {
         });
       }
     } catch (error) {
+      console.error('Permission request error:', error);
       toast({
         title: "Error",
         description: "Failed to request notification permission.",
@@ -141,6 +160,7 @@ export function NotificationSettings() {
                   {loading ? 'Requesting...' : 'Enable Notifications'}
                 </Button>
               ) : (
+                <div className="flex gap-2">
                 <Button 
                   variant="outline" 
                   onClick={testNotification}
@@ -149,6 +169,18 @@ export function NotificationSettings() {
                   <TestTube className="w-4 h-4" />
                   Test Notification
                 </Button>
+                <Button
+                  variant="ghost"
+                  onClick={async () => {
+                    // Trigger missed-goal test: sample 60 min goal with 15 min completed
+                    await notificationService.showMissedGoalNotification(15, 60);
+                    toast({ title: 'Missed-goal test sent', description: 'Check your notifications.' });
+                  }}
+                >
+                  <Mail className="w-4 h-4" />
+                  Test Missed-Goal
+                </Button>
+                </div>
               )}
             </div>
 

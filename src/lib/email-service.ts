@@ -112,6 +112,46 @@ export class EmailService {
     }
   }
 
+    // Send missed-goal email when user did not reach their target
+    static async sendMissedGoalEmail(
+      userEmail: string,
+      userName: string,
+      completedMinutes: number,
+      goalMinutes: number
+    ): Promise<boolean> {
+      if (!process.env.RESEND_API_KEY) {
+        console.log('Resend API key not configured - skipping missed-goal email');
+        return false;
+      }
+
+      try {
+        const pct = Math.round((completedMinutes / Math.max(goalMinutes, 1)) * 100);
+        const subject = `\ud83d\udcda Goal progress: ${pct}% completed`;
+        const html = `
+          <div style="font-family: system-ui, -apple-system, sans-serif; color: #111;">
+            <h2>Hi ${userName},</h2>
+            <p>You set a study goal of ${Math.round(goalMinutes/60)} hours this week.</p>
+            <p>So far you've completed <strong>${completedMinutes} minutes</strong> (${pct}%).
+            There's still time — keep going and you'll get there!</p>
+            <p style="margin-top:18px">— Studify</p>
+          </div>
+        `;
+
+        await resend.emails.send({
+          from: this.fromEmail,
+          to: userEmail,
+          subject,
+          html,
+        });
+
+        console.log(`Missed-goal email sent to ${userEmail} (${pct}% complete)`);
+        return true;
+      } catch (error) {
+        console.error('Failed to send missed-goal email:', error);
+        return false;
+      }
+    }
+
   // Generate HTML templates
   private static generateStudyReminderHTML(userName: string, activity: Activity, reminderTime: number): string {
     return `
@@ -299,8 +339,7 @@ export class EmailService {
 
 // Helper function to send scheduled reminders (could be called by a cron job)
 export async function sendScheduledReminders() {
-  // This would typically be called by a scheduled function or cron job
-  // For now, it's a placeholder for the email reminder functionality
+  // Reminder: run from cron/cloud function to send scheduled reminders
   console.log('Checking for scheduled email reminders...');
   
   // In a real implementation, this would:

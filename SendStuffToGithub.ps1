@@ -20,16 +20,29 @@ git checkout -b feat/studify-core
 git add .
 
 # 5) Commit with detailed Portuguese message (subject + body)
-git commit -m "feat(studify): implementação avançada do sistema de estudo (timer, relatórios, sincronização e auth)" `
+git commit -m "feat(studify): implementação avançada do sistema de estudo (timer, relatórios, sincronização, auth e notificações) - WIP" `
   -m "- RF01 (autenticação): integração completa de login com Email/Password (registro, verificação por e-mail, recuperação de senha) e preservado Google Sign-In" `
   -m "- RF02 (atividades): CRUD completo de atividades com prioridade, tags e sincronização em tempo real" `
   -m "- RF03 (timer/sessions): Pomodoro robusto com persistência de sessão ativa, recuperação, registro de duração real (pausas/stop), validação de atividades e prevenção de sessões órfãs" `
+  -m "- RF04 (notificações - PARCIAL/WIP): implementação inicial do sistema de notificações browser push (FCM) e e-mail (Resend)" `
+  -m "  * Cliente: service worker, gerenciamento de permissões, notificações de timer/break/metas" `
+  -m "  * Servidor: Cloud Function agendada para verificação de metas, envio de FCM push e e-mails" `
+  -m "  * UI: configurações de notificações, criação/gerenciamento de metas de estudo" `
+  -m "  * Status: funcionalidade básica implementada mas requer testes adicionais em diferentes browsers (Edge, Chrome, Firefox)" `
+  -m "  * Pendente: validação end-to-end, deploy da Cloud Function, ajustes de timezone e melhorias de UX" `
   -m "- RF05 (histórico/relatórios): histórico detalhado, filtros/pesquisa, gráficos, exportação CSV e formatação consistente de tempo" `
   -m "- Sincronização global: AppStateContext com updates otimistas e propagação imediata entre componentes" `
   -m "- UX/UI: redesign do timer, correções de dark mode, acessibilidade e animações" `
   -m "- Segurança/limpeza: exclusão completa de conta (LGPD) e tratamento correto de Timestamps do Firestore" `
-  -m "- Correções técnicas: fix setState durante render, escala de gráficos e gravação de duração real nas sessões" `
-  -m "Docs: README atualizado e .env.example/.env.local instruções"
+  -m "- Correções técnicas: fix setState durante render, escala de gráficos, gravação de duração real nas sessões, e loops de permissão de notificações no Edge" `
+  -m "" `
+  -m "NOTA: Este commit representa trabalho em progresso. O sistema de notificações está parcialmente implementado e requer:" `
+  -m "- Testes extensivos em diferentes navegadores e cenários (browser fechado, permissões, tokens)" `
+  -m "- Deploy e configuração da Cloud Function para lembretes automáticos" `
+  -m "- Validação da integração FCM/Resend em produção" `
+  -m "- Melhorias contínuas baseadas em feedback e testes de usuário" `
+  -m "" `
+  -m "Docs: README atualizado e .env.example/.env.local com configurações FCM/Resend"
 
 # 6) Ensure remote points to the correct repository
 $remoteUrl = "https://github.com/MatLudke/HADS_WIlliamLudke_Studify.git"

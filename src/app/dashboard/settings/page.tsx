@@ -33,6 +33,7 @@ import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationSettings } from '@/components/dashboard/notification-settings';
+import GoalsManager from '@/components/dashboard/goals-manager';
 
 
 export default function SettingsPage() {
@@ -239,6 +240,25 @@ export default function SettingsPage() {
                   transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
                 >
                   <NotificationSettings />
+                </motion.div>
+              </TabsContent>
+              <TabsContent value="goals">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+                >
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Goals</CardTitle>
+                      <CardDescription>
+                        Create weekly study goals and get reminders when you're behind.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <GoalsManager />
+                    </CardContent>
+                  </Card>
                 </motion.div>
               </TabsContent>
               <TabsContent value="data">
