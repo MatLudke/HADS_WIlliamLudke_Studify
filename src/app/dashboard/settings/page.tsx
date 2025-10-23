@@ -32,7 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { NotificationSettings } from '@/components/dashboard/notification-settings';
+import { NotificationSettings } from '@/components/dashboard/notification-settings-simple';
 import GoalsManager from '@/components/dashboard/goals-manager';
 
 

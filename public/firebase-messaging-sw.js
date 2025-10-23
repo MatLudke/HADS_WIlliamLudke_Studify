@@ -19,6 +19,20 @@ firebase.initializeApp({
 // Retrieve Firebase Messaging object
 const messaging = firebase.messaging();
 
+// Handle skip waiting message (for immediate activation)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[firebase-messaging-sw.js] Skipping waiting phase');
+    self.skipWaiting();
+  }
+});
+
+// Immediately claim clients on activation
+self.addEventListener('activate', (event) => {
+  console.log('[firebase-messaging-sw.js] Service Worker activated');
+  event.waitUntil(self.clients.claim());
+});
+
 // Handle background messages
 messaging.onBackgroundMessage(function (payload) {
   console.log(

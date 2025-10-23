@@ -11,23 +11,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { notificationService } from '@/lib/notifications';
-import type { NotificationPreferences } from '@/lib/types';
+import { simpleNotificationService } from '@/lib/simple-notifications';
+import { auth } from '@/lib/firebase';
+import type { NotificationPreferences } from '@/lib/simple-notifications';
 
 export function NotificationSettings() {
   const [preferences, setPreferences] = React.useState<NotificationPreferences>(() => 
-    notificationService.getPreferences()
+    simpleNotificationService.getPreferences()
   );
   const [permission, setPermission] = React.useState<NotificationPermission | null>(null);
   const [loading, setLoading] = React.useState(false);
-  const [fcmToken, setFcmToken] = React.useState<string | null>(null);
   const { toast } = useToast();
 
   React.useEffect(() => {
     // Check current permission status
-    if (notificationService.isSupported()) {
-      setPermission(notificationService.getPermissionStatus());
-      setFcmToken(notificationService.getFCMToken());
+    if (simpleNotificationService.isSupported()) {
+      setPermission(simpleNotificationService.getPermissionStatus());
+    }
     }
   }, []);
 
@@ -98,6 +98,56 @@ export function NotificationSettings() {
       toast({
         title: "Test Failed",
         description: "Could not send test notification.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const testEmail = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) {
+        toast({
+          title: "Not logged in",
+          description: "You must be logged in to test emails.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Testing email for user:', user.email);
+
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'test',
+          userEmail: user.email,
+          userName: user.displayName || 'User'
+        })
+      });
+
+      const result = await response.json();
+      console.log('Email API response:', result);
+      
+      if (result.success) {
+        toast({
+          title: "Test Email Sent! 📧",
+          description: `Check ${user.email} for the test email. It may take a minute to arrive.`,
+        });
+      } else {
+        console.error('Email send failed:', result);
+        toast({
+          title: "Email Failed",
+          description: result.error || result.message || "Could not send test email. Check console for details.",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Email test error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send test email. Check console for details.",
         variant: "destructive"
       });
     }
@@ -271,6 +321,23 @@ export function NotificationSettings() {
                 disabled={!preferences.enabled}
               />
             </div>
+
+            {preferences.emailReminders && (
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                <div className="text-sm text-muted-foreground">
+                  Test email delivery to verify your email settings
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={testEmail}
+                  className="gap-2"
+                >
+                  <Mail className="w-4 h-4" />
+                  Test Email
+                </Button>
+              </div>
+            )}
           </div>
 
           <Separator />

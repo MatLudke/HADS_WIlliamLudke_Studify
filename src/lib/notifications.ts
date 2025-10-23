@@ -14,8 +14,8 @@ export class NotificationService {
 
   constructor() {
     this.preferences = this.loadPreferences();
-    
-  // Init FCM in browser environment
+
+    // Init FCM in browser environment
     if (typeof window !== 'undefined') {
       try {
         this.messaging = getMessaging(app);
@@ -81,7 +81,7 @@ export class NotificationService {
       if ('serviceWorker' in navigator) {
         // Check if SW is already registered
         let registration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
-        
+
         if (!registration) {
           console.log('Registering new service worker...');
           registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
@@ -91,40 +91,92 @@ export class NotificationService {
         } else {
           console.log('Service Worker already registered:', registration);
         }
-        
-        // Wait for service worker to be active/ready
+
+        // Wait for service worker to be fully active
         if (registration.installing) {
-          console.log('SW installing, waiting...');
-          await new Promise((resolve) => {
-            registration!.installing!.addEventListener('statechange', function() {
-              if (this.state === 'activated') resolve(true);
+          console.log('SW installing, waiting for activation...');
+          await new Promise<void>((resolve) => {
+            const worker = registration!.installing!;
+            worker.addEventListener('statechange', function () {
+              console.log('SW state changed to:', this.state);
+              if (this.state === 'activated') {
+                resolve();
+              }
             });
           });
         } else if (registration.waiting) {
-          console.log('SW waiting, activating...');
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          console.log('SW waiting, forcing activation...');
+          // Skip waiting and activate immediately
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          await new Promise<void>((resolve) => setTimeout(resolve, 1000));
         } else if (registration.active) {
           console.log('SW already active');
         }
-        
-        // Ensure service worker is ready
+
+        // Ensure service worker is ready and controlling the page
         await navigator.serviceWorker.ready;
         console.log('Service Worker ready');
+
+        // Additional check: ensure controller exists (SW is controlling the page)
+        if (!navigator.serviceWorker.controller) {
+          console.log('No SW controller detected, reloading page...');
+          // Reload to let SW take control
+          window.location.reload();
+          return; // Exit early, will retry after reload
+        }
+
+        console.log('SW controller active:', navigator.serviceWorker.controller);
       }
-      
-      // Get FCM token
-      const token = await getToken(this.messaging, {
-        vapidKey: VAPID_KEY,
-      });
+
+      // Get FCM token with retry logic
+      let token: string | undefined;
+      let retryCount = 0;
+      const maxRetries = 3;
+
+      while (!token && retryCount < maxRetries) {
+        try {
+          console.log(`Attempting to get FCM token (attempt ${retryCount + 1}/${maxRetries})...`);
+
+          // Add a small delay before retry (except first attempt)
+          if (retryCount > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+
+          token = await getToken(this.messaging, {
+            vapidKey: VAPID_KEY,
+            serviceWorkerRegistration: await navigator.serviceWorker.ready
+          });
+
+          if (token) {
+            console.log('FCM Token obtained:', token);
+            break;
+          }
+        } catch (error: any) {
+          console.error(`Error getting FCM token (attempt ${retryCount + 1}):`, error);
+
+          // If it's the "no active Service Worker" error, wait longer
+          if (error?.message?.includes('no active Service Worker')) {
+            console.log('Waiting for service worker to become active...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+
+          retryCount++;
+
+          // If last attempt, throw error
+          if (retryCount >= maxRetries) {
+            throw error;
+          }
+        }
+      }
 
       if (token) {
         this.fcmToken = token;
         console.log('FCM Token:', token);
-        
+
         // Save token to user's profile in Firestore
         await this.saveFCMToken(token);
       } else {
-        console.log('No registration token available.');
+        console.log('No registration token available after retries.');
       }
 
       // Handle foreground messages
@@ -143,7 +195,7 @@ export class NotificationService {
       // Get current user from Firebase auth
       const { auth } = await import('./firebase');
       const user = auth.currentUser;
-      
+
       if (user) {
         const { saveFCMToken } = await import('./firestore');
         await saveFCMToken(user.uid, token);
@@ -158,7 +210,7 @@ export class NotificationService {
     if (!this.preferences.enabled) return;
 
     const { notification, data } = payload;
-    
+
     // Show browser notification for foreground messages
     if (Notification.permission === 'granted') {
       const notificationOptions: NotificationOptions = {
@@ -192,11 +244,11 @@ export class NotificationService {
     try {
       const permission = await Notification.requestPermission();
       const granted = permission === 'granted';
-      
+
       if (granted) {
         this.preferences.enabled = true;
         this.savePreferences(this.preferences);
-        
+
         // Initialize FCM now that permission is granted
         console.log('Permission granted, initializing FCM...');
         try {
@@ -206,7 +258,7 @@ export class NotificationService {
           console.error('Failed to init FCM after permission:', err);
         }
       }
-      
+
       return granted;
     } catch (error) {
       console.error('Error requesting notification permission:', error);
@@ -219,7 +271,7 @@ export class NotificationService {
 
     const title = '🍅 Pomodoro Complete!';
     const body = `Great work on "${activity.title}"! You studied for ${duration} minutes.`;
-    
+
     await this.showNotification(title, body, 'timer', activity.id);
   }
 
@@ -228,7 +280,7 @@ export class NotificationService {
 
     const title = breakType === 'short' ? '☕ Short Break!' : '🌟 Long Break!';
     const body = `Time for a ${duration}-minute ${breakType} break. You've earned it!`;
-    
+
     await this.showNotification(title, body, 'break');
   }
 
@@ -237,14 +289,14 @@ export class NotificationService {
 
     const title = '📚 Study Reminder';
     const body = `Time to work on "${activity.title}" (${activity.subject})`;
-    
+
     await this.showNotification(title, body, 'reminder', activity.id);
   }
 
   private async showNotification(
-    title: string, 
-    body: string, 
-    type: string, 
+    title: string,
+    body: string,
+    type: string,
     activityId?: string
   ): Promise<void> {
     if (typeof window === 'undefined') return;
@@ -261,11 +313,11 @@ export class NotificationService {
       };
 
       const notification = new Notification(title, options);
-      
+
       notification.onclick = () => {
         window.focus();
         notification.close();
-        
+
         // Navigate to appropriate page based on type
         if (type === 'reminder' && activityId) {
           window.location.href = '/dashboard';
@@ -280,7 +332,7 @@ export class NotificationService {
   }
 
   public async scheduleStudyReminder(activity: Activity, scheduledFor: Date): Promise<void> {
-  // Reminder: local scheduling using setTimeout; use cloud functions in prod
+    // Reminder: local scheduling using setTimeout; use cloud functions in prod
     const now = new Date();
     const timeUntilReminder = scheduledFor.getTime() - now.getTime();
 
@@ -294,7 +346,7 @@ export class NotificationService {
   public async testNotification(): Promise<void> {
     const title = '🧪 Test Notification';
     const body = 'Studify notifications are working correctly!';
-    
+
     await this.showNotification(title, body, 'test');
   }
 
@@ -304,7 +356,7 @@ export class NotificationService {
 
     const pct = Math.round((completedMinutes / Math.max(goalMinutes, 1)) * 100);
     const title = '📅 Study Goal Reminder';
-    const body = `You've completed ${completedMinutes} minutes (${pct}% of your ${Math.round(goalMinutes/60)}h goal). Keep going!`;
+    const body = `You've completed ${completedMinutes} minutes (${pct}% of your ${Math.round(goalMinutes / 60)}h goal). Keep going!`;
 
     await this.showNotification(title, body, 'missed-goal');
   }
