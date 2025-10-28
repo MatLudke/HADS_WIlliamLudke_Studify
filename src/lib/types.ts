@@ -6,6 +6,11 @@ export type Activity = {
   estimatedDuration: number; // in minutes
   priority: 'low' | 'medium' | 'high';
   status: 'todo' | 'in-progress' | 'done';
+  // Goal tracking
+  goalType?: 'daily' | 'weekly' | 'monthly' | 'none';
+  goalTarget?: number; // target minutes for the goal period
+  goalStartDate?: Date; // when the goal period started
+  goalRemindersEnabled?: boolean; // whether to send email reminders
 };
 
 export type StudySession = {
@@ -48,7 +53,6 @@ export type NotificationPreferences = {
   studyReminders: boolean;
   emailReminders: boolean;
   reminderTime: number; // minutes before activity
-  fcmToken?: string;
 };
 
 export type ScheduledNotification = {

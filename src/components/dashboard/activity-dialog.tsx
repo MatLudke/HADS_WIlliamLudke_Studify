@@ -33,6 +33,10 @@ const activitySchema = z.object({
   subject: z.string().min(1, "Subject is required."),
   estimatedDuration: z.coerce.number().min(1, "Duration must be at least 1 minute."),
   priority: z.enum(["low", "medium", "high"]),
+  // Goal fields (optional)
+  goalType: z.enum(["none", "daily", "weekly", "monthly"]).optional(),
+  goalTarget: z.coerce.number().min(0).optional(),
+  goalRemindersEnabled: z.boolean().optional(),
 });
 
 type ActivityFormData = z.infer<typeof activitySchema>;
@@ -54,6 +58,7 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ActivityFormData>({
     resolver: zodResolver(activitySchema),
@@ -62,6 +67,9 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
       subject: "",
       estimatedDuration: 60,
       priority: "medium",
+      goalType: "none",
+      goalTarget: 0,
+      goalRemindersEnabled: false,
     },
   });
 
@@ -96,26 +104,45 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
     }
 
     try {
+      // Process goal data
+      const goalData = data.goalType && data.goalType !== "none" ? {
+        goalType: data.goalType,
+        goalTarget: data.goalTarget || 0,
+        goalStartDate: new Date(), // Start goal period from now
+        goalRemindersEnabled: data.goalRemindersEnabled || false,
+      } : {
+        goalType: "none" as const,
+        goalTarget: 0,
+        goalStartDate: undefined,
+        goalRemindersEnabled: false,
+      };
+
       if (isEditing && activity) {
         // Optimistically update the state
-        updateActivityInState(activity.id, { ...data, updatedAt: new Date() });
-        await updateActivity(activity.id, { ...data, status: activity.status });
+        updateActivityInState(activity.id, { ...data, ...goalData, updatedAt: new Date() });
+        await updateActivity(activity.id, { ...data, ...goalData, status: activity.status });
         toast({ title: "Activity updated successfully!" });
       } else {
         const newActivity: Activity = {
           id: '', // Will be set by Firestore
           ...data,
+          ...goalData,
           status: 'todo',
           updatedAt: new Date(),
           userId: user.uid
         };
         
         // Create activity in Firestore first to get the ID
-        const activityId = await addActivity(user.uid, { ...data, status: 'todo' });
+        const activityId = await addActivity(user.uid, { ...data, ...goalData, status: 'todo' });
         
         // Then add to state with the correct ID
         addActivityToState({ ...newActivity, id: activityId });
-        toast({ title: "Activity added successfully!" });
+        toast({ 
+          title: "Activity added successfully!",
+          description: goalData.goalType !== "none" 
+            ? `${goalData.goalType} goal: ${goalData.goalTarget} minutes` 
+            : undefined
+        });
       }
       onSuccess();
     } catch (error) {
@@ -283,12 +310,101 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
                       )}
                     />
                   </motion.div>
+
+                  {/* Goal Tracking Section */}
+                  <motion.div
+                    className="col-span-4 pt-4 border-t"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.7 }}
+                  >
+                    <h4 className="text-sm font-semibold mb-3">📊 Goal Tracking (Optional)</h4>
+                  </motion.div>
+
+                  <motion.div 
+                    className="grid grid-cols-4 items-center gap-4"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.8 }}
+                  >
+                    <Label htmlFor="goalType" className="text-right text-sm">
+                      Goal Period
+                    </Label>
+                    <Controller
+                      name="goalType"
+                      control={control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} defaultValue={field.value || "none"}>
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="No goal" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No goal</SelectItem>
+                            <SelectItem value="daily">Daily Goal</SelectItem>
+                            <SelectItem value="weekly">Weekly Goal</SelectItem>
+                            <SelectItem value="monthly">Monthly Goal</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </motion.div>
+
+                  {watch("goalType") !== "none" && watch("goalType") && (
+                    <>
+                      <motion.div 
+                        className="grid grid-cols-4 items-center gap-4"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Label htmlFor="goalTarget" className="text-right text-sm">
+                          Target (min)
+                        </Label>
+                        <div className="col-span-3">
+                          <Input 
+                            id="goalTarget" 
+                            type="number" 
+                            placeholder="e.g. 60 minutes"
+                            {...register("goalTarget")} 
+                            className="transition-all duration-300 focus:shadow-md"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Total minutes to study per {watch("goalType")} period
+                          </p>
+                        </div>
+                      </motion.div>
+
+                      <motion.div 
+                        className="grid grid-cols-4 items-center gap-4"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                      >
+                        <Label htmlFor="goalReminders" className="text-right text-sm">
+                          Email Reminders
+                        </Label>
+                        <div className="col-span-3 flex items-center gap-2">
+                          <input
+                            id="goalReminders"
+                            type="checkbox"
+                            {...register("goalRemindersEnabled")}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            Send email if behind on goal
+                          </span>
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
                 </motion.div>
                 
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.7 }}
+                  transition={{ duration: 0.3, delay: 0.9 }}
                 >
                   <DialogFooter>
                     <motion.div

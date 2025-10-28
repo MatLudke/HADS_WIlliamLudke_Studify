@@ -38,20 +38,23 @@ Email notifications use EmailJS - a free service that sends emails directly from
 
 1. In EmailJS dashboard, click **"Email Services"** → **"Add New Service"**
 2. **Choose one of these simple options** (they work without SMTP configuration):
-   
+
    **Option A: Outlook/Hotmail (Easiest - no extra setup)**
+
    - Select **"Outlook"** or **"Hotmail"**
    - Click **"Connect Account"**
    - Sign in with your Microsoft account
    - Done! No SMTP configuration needed
-   
+
    **Option B: Yahoo Mail**
+
    - Select **"Yahoo"**
    - Click **"Connect Account"**
    - Sign in with your Yahoo account
    - Done! No SMTP configuration needed
-   
+
    **⚠️ AVOID:**
+
    - Gmail (causes 412 authentication errors)
    - "Custom SMTP Server" (requires manual host/port/password setup)
 
@@ -60,9 +63,13 @@ Email notifications use EmailJS - a free service that sends emails directly from
 ### Step 3: Create Email Template
 
 1. Click **"Email Templates"** → **"Create New Template"**
-2. Use this template content:
+2. **Select "Welcome" template** (EmailJS requires choosing a starting template - Welcome is best for Studify)
+3. **Delete all the default Welcome template content**
+4. Use this simple template content:
 
 **Template Name:** `studify_notification`
+
+**To Email:** `{{to_email}}`
 
 **Subject:** `{{subject}}`
 
@@ -77,7 +84,14 @@ Best regards,
 Studify
 ```
 
-3. Note your **Template ID** (e.g., `template_xyz789`)
+5. Note your **Template ID** (e.g., `template_xyz789`)
+
+**💡 Why "Welcome" template?**
+
+- EmailJS doesn't offer a blank template
+- Welcome template is designed for personalized messages (perfect for notifications)
+- Contact Us template has form fields we don't need
+- Just delete the default content and paste ours!
 
 ### Step 4: Get Public Key
 
@@ -154,6 +168,12 @@ npm run dev
 - Add a new service and choose **"Outlook"** or **"Yahoo"** instead
 - These options work with OAuth (just click "Connect Account")
 - Use the new Service ID in your `.env.local`
+
+**"Invalid template parameters"**
+
+- Make sure your template uses: `{{to_email}}`, `{{to_name}}`, `{{subject}}`, `{{message}}`
+- If you used Contact Us template, you might have wrong variables like `{{from_name}}`
+- Solution: Edit your template and replace with the correct variable names above
 
 **"EmailJS not configured"**
 

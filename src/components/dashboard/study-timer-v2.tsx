@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Activity, TimerSettings, ActiveSession } from '@/lib/types';
 import { addStudySession, startActiveSession, updateActiveSession, completeActiveSession, getActiveSession } from '@/lib/firestore';
 import { useAppState } from '@/contexts/AppStateContext';
-import { notificationService } from '@/lib/notifications';
+import { simpleNotificationService } from '@/lib/simple-notifications';
 import { TimerSettingsDialog } from './timer-settings';
 
 const DEFAULT_SETTINGS: TimerSettings = {
@@ -242,7 +242,13 @@ export function StudyTimerV2() {
 
         // Show completion notification
         if (activity) {
-          await notificationService.showTimerCompleteNotification(activity, actualDuration);
+          simpleNotificationService.showNotification(
+            '🍅 Pomodoro Complete!',
+            {
+              body: `Great work on ${activity.subject}! Time for a break.`,
+              icon: '/favicon.ico'
+            }
+          );
         }
       }
 
@@ -277,9 +283,12 @@ export function StudyTimerV2() {
       });
 
       // Show break completion notification
-      await notificationService.showBreakNotification(
-        mode === 'shortBreak' ? 'short' : 'long',
-        getTimerDuration(mode, settings) / 60
+      simpleNotificationService.showNotification(
+        '☕ Break Complete!',
+        {
+          body: 'Time to focus again!',
+          icon: '/favicon.ico'
+        }
       );
 
       setMode('pomodoro');

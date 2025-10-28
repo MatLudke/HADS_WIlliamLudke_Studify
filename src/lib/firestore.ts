@@ -218,30 +218,6 @@ export const deleteSessionHistory = async (userId: string) => {
     }
 };
 
-// Reminder: FCM token storage for browser push
-export const saveFCMToken = async (userId: string, token: string) => {
-    if (!userId) throw new Error("User ID is required");
-    
-    const userDocRef = doc(db, "users", userId);
-    await setDoc(userDocRef, {
-        fcmToken: token,
-        updatedAt: serverTimestamp()
-    }, { merge: true });
-    revalidatePath("/dashboard/settings");
-};
-
-export const getFCMToken = async (userId: string): Promise<string | null> => {
-    if (!userId) return null;
-    
-    const userDocRef = doc(db, "users", userId);
-    const userDoc = await getDoc(userDocRef);
-    
-    if (userDoc.exists()) {
-        return userDoc.data().fcmToken || null;
-    }
-    return null;
-};
-
 // Notification Preferences
 export const saveNotificationPreferences = async (userId: string, preferences: any) => {
     if (!userId) throw new Error("User ID is required");
