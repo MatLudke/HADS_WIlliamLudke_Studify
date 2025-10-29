@@ -156,9 +156,12 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
   };
 
 
+  const goalType = watch("goalType");
+  const showGoalFields = goalType && goalType !== "none";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] overflow-hidden">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <AnimatePresence mode="wait">
           {open && (
             <motion.div
@@ -171,39 +174,25 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
               }}
             >
               <form onSubmit={handleSubmit(onSubmit)}>
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.1 }}
-                >
-                  <DialogHeader>
-                    <DialogTitle>{isEditing ? 'Edit Activity' : 'Add Activity'}</DialogTitle>
-                    <DialogDescription>
-                      {isEditing ? 'Update the details of your study activity.' : 'Fill in the details for the new study activity.'}
-                    </DialogDescription>
-                  </DialogHeader>
-                </motion.div>
+                <DialogHeader className="space-y-3">
+                  <DialogTitle className="text-2xl">{isEditing ? '✏️ Edit Activity' : '➕ New Activity'}</DialogTitle>
+                  <DialogDescription>
+                    {isEditing ? 'Update your study activity details below.' : 'Create a new study activity and optionally set a goal.'}
+                  </DialogDescription>
+                </DialogHeader>
                 
-                <motion.div 
-                  className="grid gap-4 py-4"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
-                >
-                  <motion.div 
-                    className="grid grid-cols-4 items-center gap-4"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.3 }}
-                  >
-                    <Label htmlFor="title" className="text-right">
-                      Title
-                    </Label>
-                    <div className="col-span-3">
+                <div className="space-y-6 py-6">
+                  {/* Basic Information Section */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="title" className="text-sm font-medium">
+                        Title <span className="text-destructive">*</span>
+                      </Label>
                       <Input 
                         id="title" 
+                        placeholder="e.g., Math homework"
                         {...register("title")} 
-                        className="transition-all duration-300 focus:shadow-md"
+                        className="transition-all duration-200 focus:ring-2"
                       />
                       <AnimatePresence>
                         {errors.title && (
@@ -212,29 +201,22 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2 }}
                           >
                             {errors.title.message}
                           </motion.p>
                         )}
                       </AnimatePresence>
                     </div>
-                  </motion.div>
                   
-                  <motion.div 
-                    className="grid grid-cols-4 items-center gap-4"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.4 }}
-                  >
-                    <Label htmlFor="subject" className="text-right">
-                      Subject
-                    </Label>
-                    <div className="col-span-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="subject" className="text-sm font-medium">
+                        Subject <span className="text-destructive">*</span>
+                      </Label>
                       <Input 
                         id="subject" 
+                        placeholder="e.g., Mathematics"
                         {...register("subject")} 
-                        className="transition-all duration-300 focus:shadow-md"
+                        className="transition-all duration-200 focus:ring-2"
                       />
                       <AnimatePresence>
                         {errors.subject && (
@@ -243,185 +225,178 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2 }}
                           >
                             {errors.subject.message}
                           </motion.p>
                         )}
                       </AnimatePresence>
                     </div>
-                  </motion.div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="duration" className="text-sm font-medium">
+                          Duration <span className="text-destructive">*</span>
+                        </Label>
+                        <div className="relative">
+                          <Input 
+                            id="duration" 
+                            type="number" 
+                            placeholder="60"
+                            {...register("estimatedDuration")} 
+                            className="transition-all duration-200 focus:ring-2 pr-12"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                            min
+                          </span>
+                        </div>
+                        <AnimatePresence>
+                          {errors.estimatedDuration && (
+                            <motion.p 
+                              className="text-destructive text-xs mt-1"
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                            >
+                              {errors.estimatedDuration.message}
+                            </motion.p>
+                          )}
+                        </AnimatePresence>
+                      </div>
                   
-                  <motion.div 
-                    className="grid grid-cols-4 items-center gap-4"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.5 }}
-                  >
-                    <Label htmlFor="duration" className="text-right">
-                      Duration (min)
-                    </Label>
-                    <div className="col-span-3">
-                      <Input 
-                        id="duration" 
-                        type="number" 
-                        {...register("estimatedDuration")} 
-                        className="transition-all duration-300 focus:shadow-md"
-                      />
-                      <AnimatePresence>
-                        {errors.estimatedDuration && (
-                          <motion.p 
-                            className="text-destructive text-xs mt-1"
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            {errors.estimatedDuration.message}
-                          </motion.p>
-                        )}
-                      </AnimatePresence>
+                      <div className="space-y-2">
+                        <Label htmlFor="priority" className="text-sm font-medium">
+                          Priority <span className="text-destructive">*</span>
+                        </Label>
+                        <Controller
+                          name="priority"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <SelectTrigger className="transition-all duration-200 focus:ring-2">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="low">🟢 Low</SelectItem>
+                                <SelectItem value="medium">🟡 Medium</SelectItem>
+                                <SelectItem value="high">🔴 High</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
                     </div>
-                  </motion.div>
-                  
-                  <motion.div 
-                    className="grid grid-cols-4 items-center gap-4"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.6 }}
-                  >
-                    <Label htmlFor="priority" className="text-right">
-                      Priority
-                    </Label>
-                    <Controller
-                      name="priority"
-                      control={control}
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <SelectTrigger className="col-span-3 transition-all duration-300 hover:shadow-md">
-                            <SelectValue placeholder="Select priority" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </motion.div>
+                  </div>
 
                   {/* Goal Tracking Section */}
                   <motion.div
-                    className="col-span-4 pt-4 border-t"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.7 }}
+                    className="space-y-4 pt-4 border-t"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
                   >
-                    <h4 className="text-sm font-semibold mb-3">📊 Goal Tracking (Optional)</h4>
-                  </motion.div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🎯</span>
+                      <h3 className="text-sm font-semibold">Goal Tracking</h3>
+                      <span className="text-xs text-muted-foreground">(Optional)</span>
+                    </div>
 
-                  <motion.div 
-                    className="grid grid-cols-4 items-center gap-4"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.8 }}
-                  >
-                    <Label htmlFor="goalType" className="text-right text-sm">
-                      Goal Period
-                    </Label>
-                    <Controller
-                      name="goalType"
-                      control={control}
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} defaultValue={field.value || "none"}>
-                          <SelectTrigger className="col-span-3">
-                            <SelectValue placeholder="No goal" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">No goal</SelectItem>
-                            <SelectItem value="daily">Daily Goal</SelectItem>
-                            <SelectItem value="weekly">Weekly Goal</SelectItem>
-                            <SelectItem value="monthly">Monthly Goal</SelectItem>
-                          </SelectContent>
-                        </Select>
+                    <div className="space-y-2">
+                      <Label htmlFor="goalType" className="text-sm font-medium">
+                        Set a goal period
+                      </Label>
+                      <Controller
+                        name="goalType"
+                        control={control}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} defaultValue={field.value || "none"}>
+                            <SelectTrigger className="transition-all duration-200 focus:ring-2">
+                              <SelectValue placeholder="No goal" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">⚪ No goal</SelectItem>
+                              <SelectItem value="daily">📅 Daily Goal</SelectItem>
+                              <SelectItem value="weekly">📆 Weekly Goal</SelectItem>
+                              <SelectItem value="monthly">🗓️ Monthly Goal</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Track your study progress over time
+                      </p>
+                    </div>
+
+                    <AnimatePresence>
+                      {showGoalFields && (
+                        <motion.div
+                          className="space-y-4 p-4 bg-muted/50 rounded-lg border"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <div className="space-y-2">
+                            <Label htmlFor="goalTarget" className="text-sm font-medium">
+                              Target minutes per {goalType}
+                            </Label>
+                            <div className="relative">
+                              <Input 
+                                id="goalTarget" 
+                                type="number" 
+                                placeholder="e.g., 60"
+                                {...register("goalTarget")} 
+                                className="transition-all duration-200 focus:ring-2 pr-12"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                min
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {goalType === "daily" && "How many minutes you want to study each day"}
+                              {goalType === "weekly" && "Total minutes you want to study this week"}
+                              {goalType === "monthly" && "Total minutes you want to study this month"}
+                            </p>
+                          </div>
+
+                          <div className="flex items-start gap-3 p-3 bg-background rounded-md">
+                            <input
+                              id="goalReminders"
+                              type="checkbox"
+                              {...register("goalRemindersEnabled")}
+                              className="h-4 w-4 mt-0.5 rounded border-input accent-primary"
+                            />
+                            <div className="flex-1">
+                              <Label htmlFor="goalReminders" className="text-sm font-medium cursor-pointer">
+                                📧 Email reminders
+                              </Label>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Get notified if you&apos;re falling behind on your goal
+                              </p>
+                            </div>
+                          </div>
+                        </motion.div>
                       )}
-                    />
+                    </AnimatePresence>
                   </motion.div>
-
-                  {watch("goalType") !== "none" && watch("goalType") && (
-                    <>
-                      <motion.div 
-                        className="grid grid-cols-4 items-center gap-4"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <Label htmlFor="goalTarget" className="text-right text-sm">
-                          Target (min)
-                        </Label>
-                        <div className="col-span-3">
-                          <Input 
-                            id="goalTarget" 
-                            type="number" 
-                            placeholder="e.g. 60 minutes"
-                            {...register("goalTarget")} 
-                            className="transition-all duration-300 focus:shadow-md"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Total minutes to study per {watch("goalType")} period
-                          </p>
-                        </div>
-                      </motion.div>
-
-                      <motion.div 
-                        className="grid grid-cols-4 items-center gap-4"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3, delay: 0.1 }}
-                      >
-                        <Label htmlFor="goalReminders" className="text-right text-sm">
-                          Email Reminders
-                        </Label>
-                        <div className="col-span-3 flex items-center gap-2">
-                          <input
-                            id="goalReminders"
-                            type="checkbox"
-                            {...register("goalRemindersEnabled")}
-                            className="h-4 w-4 rounded border-gray-300"
-                          />
-                          <span className="text-sm text-muted-foreground">
-                            Send email if behind on goal
-                          </span>
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </motion.div>
+                </div>
                 
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.9 }}
-                >
-                  <DialogFooter>
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Button 
-                        type="submit" 
-                        disabled={isSubmitting}
-                        className="transition-all duration-300 hover:shadow-md"
-                      >
-                        {isSubmitting ? "Saving..." : "Save"}
-                      </Button>
-                    </motion.div>
-                  </DialogFooter>
-                </motion.div>
+                <DialogFooter className="gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting}
+                    className="min-w-[100px]"
+                  >
+                    {isSubmitting ? "Saving..." : isEditing ? "Update" : "Create"}
+                  </Button>
+                </DialogFooter>
               </form>
             </motion.div>
           )}

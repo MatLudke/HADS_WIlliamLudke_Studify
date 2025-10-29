@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Header } from "@/components/dashboard/header";
 import { ActivityList } from "@/components/dashboard/activity-list";
 import { StudyTimerV2 } from "@/components/dashboard/study-timer-v2";
+import { useGoalReminders } from "@/hooks/use-goal-reminders";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -40,6 +41,9 @@ const itemVariants = {
 };
 
 export default function DashboardPage() {
+  // Automatically check goals and send reminders when dashboard loads
+  useGoalReminders();
+
   return (
     <>
       <Header title="Dashboard" />
