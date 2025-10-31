@@ -82,9 +82,10 @@ export function calculateGoalProgress(
   const relevantSessions = studySessions.filter(session => {
     if (session.activityId !== activity.id) return false;
     
-    const sessionDate = session.completedAt instanceof Date 
-      ? session.completedAt 
-      : new Date(session.completedAt);
+    // Use endAt instead of completedAt
+    const sessionDate = session.endAt instanceof Date 
+      ? session.endAt 
+      : new Date(session.endAt);
     
     return sessionDate >= start && sessionDate <= end;
   });

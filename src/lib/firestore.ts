@@ -189,7 +189,6 @@ export const getStudySessions = async (userId: string): Promise<StudySession[]> 
             // Convert Firestore Timestamps to JS Date objects
             startAt: data.startAt instanceof Timestamp ? data.startAt.toDate() : data.startAt,
             endAt: data.endAt instanceof Timestamp ? data.endAt.toDate() : data.endAt,
-            completedAt: data.completedAt instanceof Timestamp ? data.completedAt.toDate() : data.completedAt,
         } as StudySession;
     });
     return sessions;

@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, Cell } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, Cell, ComposedChart } from "recharts"
 import {
   Card,
   CardContent,
@@ -116,7 +116,7 @@ export function ReportCharts() {
             }} 
             className="min-h-[300px] w-full"
           >
-            <BarChart 
+            <ComposedChart 
               accessibilityLayer 
               data={reportData}
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
@@ -200,20 +200,19 @@ export function ReportCharts() {
                   </div>
                 )}
               />
-              {/* Background bar (Goal) - Wider and lighter */}
+              {/* Background bar (Goal) - Full height showing the target */}
               <Bar 
                 dataKey="goalMinutes" 
                 fill="hsl(var(--muted))" 
                 radius={[8, 8, 8, 8]}
-                maxBarSize={80}
+                maxBarSize={60}
                 minPointSize={2}
-                opacity={0.3}
               />
-              {/* Foreground bar (Actual time studied) - Narrower and on top */}
+              {/* Foreground bar (Actual time studied) - Overlays on top */}
               <Bar 
                 dataKey="studiedMinutes" 
                 radius={[8, 8, 8, 8]}
-                maxBarSize={50}
+                maxBarSize={60}
                 minPointSize={2}
               >
                 {reportData.map((entry, index) => (
@@ -226,7 +225,7 @@ export function ReportCharts() {
                   />
                 ))}
               </Bar>
-            </BarChart>
+            </ComposedChart>
           </ChartContainer>
         )}
       </CardContent>
