@@ -120,7 +120,6 @@ export function ReportCharts() {
               accessibilityLayer 
               data={reportData}
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              barGap={-20}
             >
               <CartesianGrid vertical={false} />
               <XAxis
@@ -143,8 +142,9 @@ export function ReportCharts() {
               <ChartTooltip 
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
-                    const studiedMinutes = payload[0]?.value as number || 0;
-                    const goalMinutes = payload[1]?.value as number || 0;
+                    // The order is: first bar (goalMinutes), second bar (studiedMinutes)
+                    const goalMinutes = payload[0]?.value as number || 0;
+                    const studiedMinutes = payload[1]?.value as number || 0;
                     const hasGoal = goalMinutes > 0;
                     
                     return (
@@ -164,7 +164,7 @@ export function ReportCharts() {
                           {hasGoal && (
                             <>
                               <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--muted))' }} />
+                                <div className="w-3 h-3 rounded-sm bg-muted" />
                                 <span className="text-sm">
                                   Goal: <span className="font-bold">{formatDuration(goalMinutes)}</span>
                                 </span>
@@ -190,30 +190,30 @@ export function ReportCharts() {
                 content={({ payload }) => (
                   <div className="flex justify-center gap-6 mt-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--primary))' }} />
-                      <span className="text-sm text-muted-foreground">Time Studied</span>
+                      <div className="w-3 h-3 rounded-sm bg-muted" />
+                      <span className="text-sm text-muted-foreground">Goal Target</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--muted))' }} />
-                      <span className="text-sm text-muted-foreground">Goal Target</span>
+                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--primary))' }} />
+                      <span className="text-sm text-muted-foreground">Time Studied</span>
                     </div>
                   </div>
                 )}
               />
-              {/* Background bar (Goal) */}
+              {/* Background bar (Goal) - Wider and lighter */}
               <Bar 
                 dataKey="goalMinutes" 
                 fill="hsl(var(--muted))" 
                 radius={[8, 8, 8, 8]}
-                maxBarSize={60}
+                maxBarSize={80}
                 minPointSize={2}
+                opacity={0.3}
               />
-              {/* Foreground bar (Actual time studied) */}
+              {/* Foreground bar (Actual time studied) - Narrower and on top */}
               <Bar 
                 dataKey="studiedMinutes" 
-                fill="hsl(var(--primary))" 
                 radius={[8, 8, 8, 8]}
-                maxBarSize={60}
+                maxBarSize={50}
                 minPointSize={2}
               >
                 {reportData.map((entry, index) => (

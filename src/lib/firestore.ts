@@ -22,10 +22,16 @@ export const getActivities = async (userId: string): Promise<Activity[]> => {
     const q = query(activitiesCollection, where("userId", "==", userId));
     const snapshot = await getDocs(q);
     
-    const activities = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    } as Activity));
+    const activities = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            ...data,
+            id: doc.id,
+            // Convert Firestore Timestamps to JavaScript Dates for client components
+            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : data.updatedAt,
+            goalStartDate: data.goalStartDate instanceof Timestamp ? data.goalStartDate.toDate() : data.goalStartDate,
+        } as Activity;
+    });
     return activities;
 };
 
@@ -178,11 +184,12 @@ export const getStudySessions = async (userId: string): Promise<StudySession[]> 
     const sessions = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
-            id: doc.id,
             ...data,
+            id: doc.id,
             // Convert Firestore Timestamps to JS Date objects
-            startAt: (data.startAt as Timestamp).toDate(),
-            endAt: (data.endAt as Timestamp).toDate(),
+            startAt: data.startAt instanceof Timestamp ? data.startAt.toDate() : data.startAt,
+            endAt: data.endAt instanceof Timestamp ? data.endAt.toDate() : data.endAt,
+            completedAt: data.completedAt instanceof Timestamp ? data.completedAt.toDate() : data.completedAt,
         } as StudySession;
     });
     return sessions;
