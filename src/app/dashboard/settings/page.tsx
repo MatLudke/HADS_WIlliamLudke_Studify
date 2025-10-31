@@ -34,6 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationSettings } from '@/components/dashboard/notification-settings-v3';
 import GoalsManager from '@/components/dashboard/goals-manager';
+import { GoalDebugPanel } from '@/components/dashboard/goal-debug';
 
 
 export default function SettingsPage() {
@@ -140,9 +141,10 @@ export default function SettingsPage() {
             transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
           >
             <Tabs defaultValue="appearance" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="appearance">Appearance</TabsTrigger>
                 <TabsTrigger value="notifications">Notifications</TabsTrigger>
+                <TabsTrigger value="debug">Debug</TabsTrigger>
                 <TabsTrigger value="data">Data</TabsTrigger>
                 <TabsTrigger value="danger">Danger Zone</TabsTrigger>
               </TabsList>
@@ -240,6 +242,15 @@ export default function SettingsPage() {
                   transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
                 >
                   <NotificationSettings />
+                </motion.div>
+              </TabsContent>
+              <TabsContent value="debug">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+                >
+                  <GoalDebugPanel />
                 </motion.div>
               </TabsContent>
               <TabsContent value="goals">

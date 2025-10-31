@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, Cell } from "recharts"
 import {
   Card,
   CardContent,
@@ -16,14 +16,21 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { getStudySessions } from "@/lib/firestore"
-import type { StudySession } from "@/lib/types"
+import type { StudySession, Activity } from "@/lib/types"
 import { useAppState } from "@/contexts/AppStateContext"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDuration } from "@/lib/utils"
 
+interface ChartData {
+  subject: string;
+  studiedMinutes: number;
+  goalMinutes: number;
+  hasGoal: boolean;
+}
+
 export function ReportCharts() {
-  const { user } = useAppState();
-  const [reportData, setReportData] = React.useState<{ subject: string, minutes: number }[]>([]);
+  const { user, activities } = useAppState();
+  const [reportData, setReportData] = React.useState<ChartData[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -33,21 +40,41 @@ export function ReportCharts() {
       setLoading(false);
       setReportData([]);
     }
-  }, [user]);
+  }, [user, activities]);
 
   const fetchReportData = async (userId: string) => {
     try {
       setLoading(true);
       const sessions: StudySession[] = await getStudySessions(userId);
-      const processedData = sessions.reduce((acc, session) => {
-        const existing = acc.find(item => item.subject === session.subject);
-        if (existing) {
-          existing.minutes += session.duration;
-        } else {
-          acc.push({ subject: session.subject, minutes: session.duration });
+      
+      // Group sessions by subject
+      const subjectData = sessions.reduce((acc, session) => {
+        if (!acc[session.subject]) {
+          acc[session.subject] = 0;
         }
+        acc[session.subject] += session.duration;
         return acc;
-      }, [] as { subject: string, minutes: number }[]);
+      }, {} as Record<string, number>);
+
+      // Match with activities and their goals
+      const processedData: ChartData[] = Object.entries(subjectData).map(([subject, minutes]) => {
+        // Find activities with this subject that have goals
+        const activitiesForSubject = activities.filter(
+          a => a.subject === subject && a.goalType && a.goalType !== 'none'
+        );
+        
+        // Sum up all goal targets for this subject
+        const totalGoal = activitiesForSubject.reduce((sum, activity) => {
+          return sum + (activity.goalTarget || 0);
+        }, 0);
+
+        return {
+          subject,
+          studiedMinutes: minutes,
+          goalMinutes: totalGoal,
+          hasGoal: totalGoal > 0
+        };
+      });
       
       setReportData(processedData);
     } catch (error) {
@@ -57,31 +84,43 @@ export function ReportCharts() {
     }
   };
 
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>Study Time by Subject</CardTitle>
-        <CardDescription>Time dedicated to each subject.</CardDescription>
+        <CardDescription>Compare your study time with your goals.</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
             <div className="flex flex-col space-y-3">
-              <Skeleton className="h-[250px] w-full rounded-xl" />
+              <Skeleton className="h-[300px] w-full rounded-xl" />
               <div className="flex justify-around">
                 {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-4 w-10" />)}
               </div>
             </div>
         ) : reportData.length === 0 ? (
-          <div className="flex items-center justify-center h-[250px]">
+          <div className="flex items-center justify-center h-[300px]">
             <p className="text-muted-foreground">No study sessions recorded yet.</p>
           </div>
         ) : (
-          <ChartContainer config={{}} className="min-h-[250px] w-full">
+          <ChartContainer 
+            config={{
+              studiedMinutes: {
+                label: "Time Studied",
+                color: "hsl(var(--primary))",
+              },
+              goalMinutes: {
+                label: "Goal Target",
+                color: "hsl(var(--muted))",
+              },
+            }} 
+            className="min-h-[300px] w-full"
+          >
             <BarChart 
               accessibilityLayer 
               data={reportData}
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              barGap={-20}
             >
               <CartesianGrid vertical={false} />
               <XAxis
@@ -93,30 +132,53 @@ export function ReportCharts() {
               <YAxis 
                 tickFormatter={(value) => formatDuration(value)}
                 domain={[0, (dataMax: number) => {
-                  // Calculate a reasonable upper bound based on the data
-                  const maxValue = Math.max(...reportData.map(d => d.minutes));
-                  if (maxValue <= 5) return 5; // For very small values (≤5 min), cap at 5 min
-                  if (maxValue <= 30) return Math.ceil(maxValue / 5) * 5; // Round up to nearest 5 min
-                  if (maxValue <= 120) return Math.ceil(maxValue / 15) * 15; // Round up to nearest 15 min
-                  return Math.ceil(maxValue / 30) * 30; // Round up to nearest 30 min for larger values
+                  const maxValue = Math.max(...reportData.map(d => Math.max(d.studiedMinutes, d.goalMinutes)));
+                  if (maxValue <= 5) return 5;
+                  if (maxValue <= 30) return Math.ceil(maxValue / 5) * 5;
+                  if (maxValue <= 120) return Math.ceil(maxValue / 15) * 15;
+                  return Math.ceil(maxValue / 30) * 30;
                 }]}
                 tickCount={6}
               />
               <ChartTooltip 
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
-                    const minutes = payload[0].value as number;
+                    const studiedMinutes = payload[0]?.value as number || 0;
+                    const goalMinutes = payload[1]?.value as number || 0;
+                    const hasGoal = goalMinutes > 0;
+                    
                     return (
-                      <div className="rounded-lg border bg-background p-2 shadow-sm">
+                      <div className="rounded-lg border bg-background p-3 shadow-sm">
                         <div className="grid gap-2">
                           <div className="flex flex-col">
-                            <span className="text-[0.70rem] uppercase text-muted-foreground">
+                            <span className="text-[0.70rem] uppercase text-muted-foreground font-semibold">
                               {label}
                             </span>
-                            <span className="font-bold">
-                              {formatDuration(minutes)}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--primary))' }} />
+                            <span className="text-sm">
+                              Studied: <span className="font-bold">{formatDuration(studiedMinutes)}</span>
                             </span>
                           </div>
+                          {hasGoal && (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--muted))' }} />
+                                <span className="text-sm">
+                                  Goal: <span className="font-bold">{formatDuration(goalMinutes)}</span>
+                                </span>
+                              </div>
+                              <div className="pt-1 border-t">
+                                <span className="text-xs text-muted-foreground">
+                                  {studiedMinutes >= goalMinutes 
+                                    ? `🎉 Goal achieved! +${formatDuration(studiedMinutes - goalMinutes)}`
+                                    : `📊 ${formatDuration(goalMinutes - studiedMinutes)} remaining`
+                                  }
+                                </span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
@@ -124,12 +186,46 @@ export function ReportCharts() {
                   return null;
                 }}
               />
+              <Legend 
+                content={({ payload }) => (
+                  <div className="flex justify-center gap-6 mt-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--primary))' }} />
+                      <span className="text-sm text-muted-foreground">Time Studied</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--muted))' }} />
+                      <span className="text-sm text-muted-foreground">Goal Target</span>
+                    </div>
+                  </div>
+                )}
+              />
+              {/* Background bar (Goal) */}
               <Bar 
-                dataKey="minutes" 
-                fill="hsl(var(--primary))" 
-                radius={4}
+                dataKey="goalMinutes" 
+                fill="hsl(var(--muted))" 
+                radius={[8, 8, 8, 8]}
+                maxBarSize={60}
                 minPointSize={2}
               />
+              {/* Foreground bar (Actual time studied) */}
+              <Bar 
+                dataKey="studiedMinutes" 
+                fill="hsl(var(--primary))" 
+                radius={[8, 8, 8, 8]}
+                maxBarSize={60}
+                minPointSize={2}
+              >
+                {reportData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`}
+                    fill={entry.hasGoal && entry.studiedMinutes >= entry.goalMinutes 
+                      ? "hsl(var(--success))" 
+                      : "hsl(var(--primary))"
+                    }
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ChartContainer>
         )}
