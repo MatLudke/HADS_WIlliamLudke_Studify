@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, Cell, ComposedChart } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend, Cell } from "recharts"
 import {
   Card,
   CardContent,
@@ -111,12 +111,12 @@ export function ReportCharts() {
               },
               goalMinutes: {
                 label: "Goal Target",
-                color: "hsl(var(--muted))",
+                color: "hsl(var(--chart-1))",
               },
             }} 
             className="min-h-[300px] w-full"
           >
-            <ComposedChart 
+            <BarChart 
               accessibilityLayer 
               data={reportData}
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
@@ -164,7 +164,7 @@ export function ReportCharts() {
                           {hasGoal && (
                             <>
                               <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-sm bg-muted" />
+                                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-1))' }} />
                                 <span className="text-sm">
                                   Goal: <span className="font-bold">{formatDuration(goalMinutes)}</span>
                                 </span>
@@ -190,7 +190,7 @@ export function ReportCharts() {
                 content={({ payload }) => (
                   <div className="flex justify-center gap-6 mt-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-sm bg-muted" />
+                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-1))' }} />
                       <span className="text-sm text-muted-foreground">Goal Target</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -200,19 +200,20 @@ export function ReportCharts() {
                   </div>
                 )}
               />
-              {/* Background bar (Goal) - Full height showing the target */}
+              {/* Background bar (Goal) - Wider and semi-transparent, visible in dark mode */}
               <Bar 
                 dataKey="goalMinutes" 
-                fill="hsl(var(--muted))" 
+                fill="hsl(var(--chart-1))" 
                 radius={[8, 8, 8, 8]}
-                maxBarSize={60}
+                maxBarSize={70}
                 minPointSize={2}
+                opacity={0.4}
               />
-              {/* Foreground bar (Actual time studied) - Overlays on top */}
+              {/* Foreground bar (Actual time studied) - Narrower, overlays on top */}
               <Bar 
                 dataKey="studiedMinutes" 
                 radius={[8, 8, 8, 8]}
-                maxBarSize={60}
+                maxBarSize={50}
                 minPointSize={2}
               >
                 {reportData.map((entry, index) => (
@@ -225,7 +226,7 @@ export function ReportCharts() {
                   />
                 ))}
               </Bar>
-            </ComposedChart>
+            </BarChart>
           </ChartContainer>
         )}
       </CardContent>
