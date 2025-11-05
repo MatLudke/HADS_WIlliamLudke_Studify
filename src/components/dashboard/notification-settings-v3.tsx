@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
-import { Bell, BellOff, TestTube, Mail, Check, X, AlertCircle } from 'lucide-react';
+import { Mail, TestTube, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -19,8 +19,6 @@ export function NotificationSettings() {
   const [preferences, setPreferences] = React.useState<NotificationPreferences>(() => 
     simpleNotificationService.getPreferences()
   );
-  const [permission, setPermission] = React.useState<NotificationPermission | null>(null);
-  const [loading, setLoading] = React.useState(false);
   const [testingEmail, setTestingEmail] = React.useState(false);
   const [currentUser, setCurrentUser] = React.useState<any>(null);
   const { toast } = useToast();
@@ -29,20 +27,8 @@ export function NotificationSettings() {
   const emailConfig = getEmailConfig();
 
   React.useEffect(() => {
-    if (simpleNotificationService.isSupported()) {
-      setPermission(simpleNotificationService.getPermissionStatus());
-    }
-
-    console.log('📧 Email Configuration:', emailConfig);
-
     // Listen for auth state changes
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      console.log('👤 Auth state changed:', {
-        hasUser: !!user,
-        email: user?.email,
-        displayName: user?.displayName,
-        uid: user?.uid
-      });
       setCurrentUser(user);
     });
 
@@ -60,51 +46,7 @@ export function NotificationSettings() {
     });
   };
 
-  const handleEnableBrowserNotifications = async () => {
-    setLoading(true);
-    try {
-      const granted = await simpleNotificationService.requestPermission();
-      setPermission(granted ? 'granted' : 'denied');
-      
-      if (granted) {
-        toast({
-          title: "Notifications Enabled! 🎉",
-          description: "You'll now receive browser notifications.",
-        });
-      } else {
-        toast({
-          title: "Permission Denied",
-          description: "Please enable notifications in your browser settings.",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to enable notifications.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTestBrowserNotification = () => {
-    simpleNotificationService.testNotification();
-    toast({
-      title: "Test Sent!",
-      description: "Check for the notification on your screen.",
-    });
-  };
-
   const handleTestEmail = async () => {
-    console.log('🔍 Testing email - Current user state:', {
-      hasCurrentUser: !!currentUser,
-      email: currentUser?.email,
-      displayName: currentUser?.displayName,
-      authCurrentUser: auth.currentUser?.email
-    });
-
     if (!currentUser || !currentUser.email) {
       toast({
         title: "No User",
@@ -118,15 +60,7 @@ export function NotificationSettings() {
     
     try {
       const userName = currentUser.displayName?.split(' ')[0] || 'Student';
-      
-      console.log('📧 Sending test email with params:', {
-        to_email: currentUser.email,
-        to_name: userName
-      });
-      
       const result = await sendTestEmail(currentUser.email, userName);
-
-      console.log('📧 Email result:', result);
 
       if (result.success) {
         toast({
@@ -141,7 +75,6 @@ export function NotificationSettings() {
         });
       }
     } catch (error: any) {
-      console.error('❌ Email error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to send test email",
@@ -153,74 +86,12 @@ export function NotificationSettings() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Browser Notifications Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Browser Notifications
-              </CardTitle>
-              <CardDescription>
-                Get instant notifications right on your desktop
-              </CardDescription>
-            </div>
-            <Badge variant={permission === 'granted' ? 'default' : 'secondary'}>
-              {permission === 'granted' ? 'Enabled' : 'Disabled'}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {permission !== 'granted' && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Enable browser notifications to get instant reminders when timers complete and breaks end.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Enable Notifications</Label>
-              <p className="text-sm text-muted-foreground">
-                Allow Studify to send you notifications
-              </p>
-            </div>
-            <Button
-              variant={permission === 'granted' ? 'outline' : 'default'}
-              onClick={handleEnableBrowserNotifications}
-              disabled={loading || permission === 'granted'}
-            >
-              {permission === 'granted' ? (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Enabled
-                </>
-              ) : (
-                <>
-                  <Bell className="mr-2 h-4 w-4" />
-                  Enable
-                </>
-              )}
-            </Button>
-          </div>
-
-          {permission === 'granted' && (
-            <Button
-              variant="outline"
-              onClick={handleTestBrowserNotification}
-              className="w-full"
-            >
-              <TestTube className="mr-2 h-4 w-4" />
-              Test Browser Notification
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-
+    <motion.div 
+      className="space-y-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+    >
       {/* Email Notifications Card */}
       <Card>
         <CardHeader>
@@ -231,11 +102,11 @@ export function NotificationSettings() {
                 Email Notifications
               </CardTitle>
               <CardDescription>
-                Receive study reminders and summaries via email
+                Receive study reminders and summaries directly to your inbox
               </CardDescription>
             </div>
             <Badge variant={emailConfig.isConfigured ? 'default' : 'secondary'}>
-              {emailConfig.isConfigured ? 'Configured' : 'Not Configured'}
+              {emailConfig.isConfigured ? 'Active' : 'Not Configured'}
             </Badge>
           </div>
         </CardHeader>
@@ -245,88 +116,99 @@ export function NotificationSettings() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 <p className="font-medium mb-2">Email notifications are not configured yet.</p>
-                <p className="text-sm">Add these to your <code className="bg-muted px-1 rounded">.env.local</code>:</p>
-                <pre className="mt-2 p-2 bg-muted rounded text-xs">
+                <p className="text-sm mb-2">Add these environment variables to your <code className="bg-muted px-1 rounded">.env.local</code> file:</p>
+                <pre className="mt-2 p-3 bg-muted rounded text-xs font-mono">
 {`NEXT_PUBLIC_EMAILJS_SERVICE_ID=your_service_id
 NEXT_PUBLIC_EMAILJS_TEMPLATE_ID=your_template_id
 NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=your_public_key`}
                 </pre>
-                <p className="text-sm mt-2">
-                  See <code className="bg-muted px-1 rounded">docs/NOTIFICATIONS_SETUP.md</code> for setup instructions.
+                <p className="text-sm mt-3 text-muted-foreground">
+                  Visit <a href="https://www.emailjs.com/" target="_blank" rel="noopener noreferrer" className="underline">EmailJS</a> to set up your free email service.
                 </p>
               </AlertDescription>
             </Alert>
           ) : (
             <>
               {currentUser?.email && (
-                <Alert>
-                  <Mail className="h-4 w-4" />
+                <Alert className="bg-primary/5 border-primary/20">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
                   <AlertDescription>
-                    Emails will be sent to: <strong>{currentUser.email}</strong>
+                    <span className="text-sm">Notifications will be sent to: </span>
+                    <strong className="text-primary">{currentUser.email}</strong>
                   </AlertDescription>
                 </Alert>
               )}
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Email Reminders</Label>
+              <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors duration-200">
+                <div className="space-y-0.5 flex-1">
+                  <Label className="text-base font-medium cursor-pointer">Study Reminders</Label>
                   <p className="text-sm text-muted-foreground">
-                    Get study reminders via email
+                    Get email reminders for your study sessions and goals
                   </p>
                 </div>
                 <Switch
                   checked={preferences.emailReminders}
                   onCheckedChange={(checked) => handlePreferenceChange('emailReminders', checked)}
+                  className="ml-4"
                 />
               </div>
 
-              <Button
-                variant="outline"
-                onClick={handleTestEmail}
-                disabled={testingEmail || !currentUser?.email}
-                className="w-full"
-              >
-                {testingEmail ? (
-                  <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <TestTube className="mr-2 h-4 w-4" />
-                    Send Test Email
-                  </>
-                )}
-              </Button>
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  onClick={handleTestEmail}
+                  disabled={testingEmail || !currentUser?.email}
+                  className="w-full hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+                >
+                  {testingEmail ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Sending Test Email...
+                    </>
+                  ) : (
+                    <>
+                      <TestTube className="mr-2 h-4 w-4" />
+                      Send Test Email
+                    </>
+                  )}
+                </Button>
+              </div>
             </>
           )}
         </CardContent>
       </Card>
 
-      {/* Configuration Info */}
+      {/* Configuration Status Card */}
       {emailConfig.isConfigured && (
-        <Card>
+        <Card className="bg-muted/30">
           <CardHeader>
-            <CardTitle className="text-sm">Configuration Details</CardTitle>
+            <CardTitle className="text-sm font-medium">Email Service Configuration</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center p-2 rounded hover:bg-background transition-colors">
+                <span className="text-muted-foreground">Service Provider:</span>
+                <span className="font-medium">EmailJS</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded hover:bg-background transition-colors">
                 <span className="text-muted-foreground">Service ID:</span>
-                <code className="bg-muted px-2 py-1 rounded text-xs">{emailConfig.serviceId}</code>
+                <code className="bg-background px-2 py-1 rounded text-xs font-mono">{emailConfig.serviceId}</code>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center p-2 rounded hover:bg-background transition-colors">
                 <span className="text-muted-foreground">Template ID:</span>
-                <code className="bg-muted px-2 py-1 rounded text-xs">{emailConfig.templateId}</code>
+                <code className="bg-background px-2 py-1 rounded text-xs font-mono">{emailConfig.templateId}</code>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center p-2 rounded hover:bg-background transition-colors">
                 <span className="text-muted-foreground">Status:</span>
-                <span className="text-green-600 font-medium">✓ Ready</span>
+                <span className="text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Connected
+                </span>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
-    </div>
+    </motion.div>
   );
 }

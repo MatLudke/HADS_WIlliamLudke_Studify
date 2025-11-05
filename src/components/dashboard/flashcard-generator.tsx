@@ -153,9 +153,10 @@ export function FlashcardGenerator() {
               <motion.div
                 key={`correct-${stats.correct}`}
                 initial={{ scale: 1 }}
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 0.3 }}
-                className="flex items-center gap-2 bg-gradient-to-br from-green-500 to-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg"
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                whileHover={{ scale: 1.05, y: -3 }}
+                className="flex items-center gap-2 bg-gradient-to-br from-green-500 to-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-150 cursor-default"
               >
                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
                   <Trophy className="h-5 w-5" />
@@ -170,9 +171,10 @@ export function FlashcardGenerator() {
               <motion.div
                 key={`incorrect-${stats.incorrect}`}
                 initial={{ scale: 1 }}
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 0.3 }}
-                className="flex items-center gap-2 bg-gradient-to-br from-red-500 to-rose-600 text-white px-5 py-3 rounded-xl shadow-lg"
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                whileHover={{ scale: 1.05, y: -3 }}
+                className="flex items-center gap-2 bg-gradient-to-br from-red-500 to-rose-600 text-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-150 cursor-default"
               >
                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
                   <Target className="h-5 w-5" />
@@ -188,7 +190,9 @@ export function FlashcardGenerator() {
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center gap-2 bg-gradient-to-br from-blue-500 to-indigo-600 text-white px-5 py-3 rounded-xl shadow-lg"
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  whileHover={{ scale: 1.05, y: -3 }}
+                  className="flex items-center gap-2 bg-gradient-to-br from-blue-500 to-indigo-600 text-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-150 cursor-default"
                 >
                   <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
                     <Sparkles className="h-5 w-5" />
@@ -207,7 +211,7 @@ export function FlashcardGenerator() {
               variant="outline" 
               size="lg"
               onClick={handleReset}
-              className="gap-2 hover:bg-primary hover:text-primary-foreground transition-all"
+              className="gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-150 hover:scale-105 active:scale-95"
             >
               <RefreshCw className="h-4 w-4" />
               New Set
@@ -224,7 +228,7 @@ export function FlashcardGenerator() {
               visible: {
                 opacity: 1,
                 transition: {
-                  staggerChildren: 0.15,
+                  staggerChildren: 0.1,
                 },
               },
             }}
@@ -241,14 +245,15 @@ export function FlashcardGenerator() {
                       scale: 1,
                       transition: {
                         type: "spring",
-                        stiffness: 100,
-                        damping: 15,
+                        stiffness: 300,
+                        damping: 25,
+                        duration: 0.3,
                       },
                     },
                   }}
                   initial="hidden"
                   animate="visible"
-                  exit={{ opacity: 0, scale: 0.8 }}
+                  exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
                 >
                   <Flashcard 
                     question={card} 

@@ -63,13 +63,14 @@ export function Flashcard({ question, onAnswer }: FlashcardProps) {
         rotateY: 0,
       }}
       exit={{ opacity: 0, scale: 0.9, rotateY: 15 }}
-      whileHover={{ scale: 1.02, y: -5 }}
+      whileHover={{ scale: 1.03, y: -8 }}
       transition={{ 
         type: "spring",
-        stiffness: 200,
-        damping: 20,
+        stiffness: 400,
+        damping: 25,
+        duration: 0.2,
       }}
-      className="w-[280px] h-[400px] rounded-xl p-8 flex flex-col items-center justify-start gap-5 shadow-xl hover:shadow-2xl transition-shadow duration-300"
+      className="w-[280px] h-[400px] rounded-xl p-8 flex flex-col items-center justify-start gap-5 shadow-xl hover:shadow-2xl transition-shadow duration-150"
       style={{
         background: question.gradient
           ? `radial-gradient(
@@ -108,13 +109,18 @@ export function Flashcard({ question, onAnswer }: FlashcardProps) {
               disabled={revealed}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 + index * 0.1 }}
-              whileHover={!revealed ? { scale: 1.05, x: 5 } : {}}
-              whileTap={!revealed ? { scale: 0.95 } : {}}
+              transition={{ 
+                delay: 0.3 + index * 0.1,
+                type: "spring",
+                stiffness: 500,
+                damping: 30,
+              }}
+              whileHover={!revealed ? { scale: 1.05, y: -2 } : {}}
+              whileTap={!revealed ? { scale: 0.96 } : {}}
               className={cn(
-                "w-full h-[50px] px-3 py-2 rounded-lg text-xs font-medium text-gray-900 transition-all duration-300 flex items-center justify-center text-center leading-tight",
+                "w-full h-[50px] px-3 py-2 rounded-lg text-xs font-medium text-gray-900 transition-all duration-100 flex items-center justify-center text-center leading-tight",
                 getButtonStyle(option),
-                !revealed && "hover:shadow-md"
+                !revealed && "hover:shadow-xl cursor-pointer"
               )}
             >
               <span className="break-words line-clamp-2 overflow-hidden">{option}</span>
@@ -128,12 +134,12 @@ export function Flashcard({ question, onAnswer }: FlashcardProps) {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
-              whileHover={!revealed ? { scale: 1.05, x: 5 } : {}}
-              whileTap={!revealed ? { scale: 0.95 } : {}}
+              whileHover={!revealed ? { scale: 1.05, y: -2 } : {}}
+              whileTap={!revealed ? { scale: 0.96 } : {}}
               className={cn(
-                "w-full h-[50px] rounded-lg text-sm font-medium text-gray-900 transition-all duration-300 flex items-center justify-center",
+                "w-full h-[50px] rounded-lg text-sm font-medium text-gray-900 transition-all duration-100 flex items-center justify-center",
                 getButtonStyle("True"),
-                !revealed && "hover:shadow-md"
+                !revealed && "hover:shadow-xl cursor-pointer"
               )}
             >
               True
@@ -144,12 +150,12 @@ export function Flashcard({ question, onAnswer }: FlashcardProps) {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
-              whileHover={!revealed ? { scale: 1.05, x: 5 } : {}}
-              whileTap={!revealed ? { scale: 0.95 } : {}}
+              whileHover={!revealed ? { scale: 1.05, y: -2 } : {}}
+              whileTap={!revealed ? { scale: 0.96 } : {}}
               className={cn(
-                "w-full h-[50px] rounded-lg text-sm font-medium text-gray-900 transition-all duration-300 flex items-center justify-center",
+                "w-full h-[50px] rounded-lg text-sm font-medium text-gray-900 transition-all duration-100 flex items-center justify-center",
                 getButtonStyle("False"),
-                !revealed && "hover:shadow-md"
+                !revealed && "hover:shadow-xl cursor-pointer"
               )}
             >
               False

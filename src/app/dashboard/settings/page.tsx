@@ -34,7 +34,6 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationSettings } from '@/components/dashboard/notification-settings-v3';
 import GoalsManager from '@/components/dashboard/goals-manager';
-import { GoalDebugPanel } from '@/components/dashboard/goal-debug';
 
 
 export default function SettingsPage() {
@@ -45,9 +44,67 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
+  const [userStats, setUserStats] = useState<{
+    totalActivities: number;
+    totalSessions: number;
+    totalStudyTime: number;
+    lastActive: Date | null;
+  } | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const fetchUserStats = async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        setLoadingStats(false);
+        return;
+      }
+
+      try {
+        const { getActivities, getStudySessions } = await import('@/lib/firestore');
+        
+        // Fetch activities
+        const activities = await getActivities(user.uid);
+        
+        // Fetch study sessions
+        const sessions = await getStudySessions(user.uid);
+        
+        // Calculate total study time
+        const totalTime = sessions.reduce((acc, session) => {
+          return acc + (session.duration || 0);
+        }, 0);
+
+        // Find last active date (most recent session)
+        const lastSession = sessions.length > 0 
+          ? sessions.sort((a, b) => {
+              const dateA = a.endAt instanceof Date ? a.endAt : new Date(a.endAt);
+              const dateB = b.endAt instanceof Date ? b.endAt : new Date(b.endAt);
+              return dateB.getTime() - dateA.getTime();
+            })[0]
+          : null;
+
+        const lastActive = lastSession 
+          ? (lastSession.endAt instanceof Date ? lastSession.endAt : new Date(lastSession.endAt))
+          : null;
+
+        setUserStats({
+          totalActivities: activities.length,
+          totalSessions: sessions.length,
+          totalStudyTime: totalTime,
+          lastActive,
+        });
+      } catch (error) {
+        console.error('Error fetching user stats:', error);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    fetchUserStats();
   }, []);
 
   const handleClearSessionHistory = async () => {
@@ -141,12 +198,11 @@ export default function SettingsPage() {
             transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
           >
             <Tabs defaultValue="appearance" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="appearance">Appearance</TabsTrigger>
                 <TabsTrigger value="notifications">Notifications</TabsTrigger>
-                <TabsTrigger value="debug">Debug</TabsTrigger>
                 <TabsTrigger value="data">Data</TabsTrigger>
-                <TabsTrigger value="danger">Danger Zone</TabsTrigger>
+                <TabsTrigger value="account">Account</TabsTrigger>
               </TabsList>
               <TabsContent value="appearance">
                 <motion.div
@@ -244,26 +300,45 @@ export default function SettingsPage() {
                   <NotificationSettings />
                 </motion.div>
               </TabsContent>
-              <TabsContent value="debug">
+              <TabsContent value="data">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
-                >
-                  <GoalDebugPanel />
-                </motion.div>
-              </TabsContent>
-              <TabsContent value="goals">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+                  className="space-y-4"
                 >
                   <Card>
                     <CardHeader>
-                      <CardTitle>Goals</CardTitle>
+                      <CardTitle>Study Data</CardTitle>
                       <CardDescription>
-                        Create weekly study goals and get reminders when you're behind.
+                        Manage your study session data and activity history.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors duration-200">
+                        <div className="space-y-1">
+                          <h4 className="font-medium">Clear Session History</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Remove all study session data and reports. Your activities will be preserved.
+                          </p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          onClick={handleClearSessionHistory}
+                          disabled={isClearingHistory}
+                          className="ml-4 min-w-[120px]"
+                        >
+                          {isClearingHistory ? "Clearing..." : "Clear History"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Study Goals</CardTitle>
+                      <CardDescription>
+                        View and manage your weekly study goals and progress tracking.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -272,55 +347,144 @@ export default function SettingsPage() {
                   </Card>
                 </motion.div>
               </TabsContent>
-              <TabsContent value="data">
+              <TabsContent value="account">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+                  className="space-y-4"
                 >
                   <Card>
                     <CardHeader>
-                      <CardTitle>Session History</CardTitle>
+                      <CardTitle>Account Information</CardTitle>
                       <CardDescription>
-                        Manage your study session data and reports.
+                        Your account details and activity statistics.
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <h4 className="font-medium">Clear Session History</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Remove all study session data and reports. Activities will be preserved.
-                          </p>
+                    <CardContent className="space-y-6">
+                      {/* User Profile */}
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Profile</h4>
+                        <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+                          <div className="flex justify-between items-center py-2">
+                            <span className="text-sm font-medium">Email Address</span>
+                            <span className="text-sm text-muted-foreground font-mono">
+                              {auth.currentUser?.email || 'Not available'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-2 border-t">
+                            <span className="text-sm font-medium">Display Name</span>
+                            <span className="text-sm text-muted-foreground">
+                              {auth.currentUser?.displayName || 'Not set'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-2 border-t">
+                            <span className="text-sm font-medium">User ID</span>
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {auth.currentUser?.uid ? `${auth.currentUser.uid.substring(0, 8)}...` : 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-2 border-t">
+                            <span className="text-sm font-medium">Account Created</span>
+                            <span className="text-sm text-muted-foreground">
+                              {auth.currentUser?.metadata.creationTime 
+                                ? new Date(auth.currentUser.metadata.creationTime).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })
+                                : 'Unknown'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-2 border-t">
+                            <span className="text-sm font-medium">Last Sign In</span>
+                            <span className="text-sm text-muted-foreground">
+                              {auth.currentUser?.metadata.lastSignInTime 
+                                ? new Date(auth.currentUser.metadata.lastSignInTime).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })
+                                : 'Unknown'}
+                            </span>
+                          </div>
                         </div>
-                        <Button 
-                          variant="outline" 
-                          onClick={handleClearSessionHistory}
-                          disabled={isClearingHistory}
-                        >
-                          {isClearingHistory ? "Clearing..." : "Clear History"}
-                        </Button>
+                      </div>
+
+                      {/* Activity Statistics */}
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Activity Statistics</h4>
+                        {loadingStats ? (
+                          <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+                            <Skeleton className="h-8 w-full" />
+                            <Skeleton className="h-8 w-full" />
+                            <Skeleton className="h-8 w-full" />
+                            <Skeleton className="h-8 w-full" />
+                          </div>
+                        ) : userStats ? (
+                          <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-sm font-medium">Total Activities</span>
+                              <span className="text-lg font-bold text-primary">{userStats.totalActivities}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-t">
+                              <span className="text-sm font-medium">Study Sessions</span>
+                              <span className="text-lg font-bold text-primary">{userStats.totalSessions}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-t">
+                              <span className="text-sm font-medium">Total Study Time</span>
+                              <span className="text-lg font-bold text-primary">
+                                {Math.floor(userStats.totalStudyTime / 60)}h {userStats.totalStudyTime % 60}m
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-t">
+                              <span className="text-sm font-medium">Last Active</span>
+                              <span className="text-sm text-muted-foreground">
+                                {userStats.lastActive 
+                                  ? new Date(userStats.lastActive).toLocaleDateString('en-US', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric'
+                                    })
+                                  : 'No activity yet'}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-4 border rounded-lg bg-muted/30 text-center text-sm text-muted-foreground">
+                            Unable to load activity statistics
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
-                </motion.div>
-              </TabsContent>
-              <TabsContent value="danger">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
-                >
-                  <Card className="border-destructive">
+
+                  <Card className="border-destructive/50 bg-destructive/5">
                     <CardHeader>
-                      <CardTitle>Delete Account</CardTitle>
+                      <CardTitle className="text-destructive">Danger Zone</CardTitle>
                       <CardDescription>
-                        This action is permanent and cannot be undone. This will permanently delete your account and remove all your data from our servers.
+                        Irreversible actions that will permanently affect your account.
                       </CardDescription>
                     </CardHeader>
-                    <CardFooter>
-                      <Button variant="destructive" onClick={() => setOpen(true)}>Delete My Account</Button>
-                    </CardFooter>
+                    <CardContent>
+                      <div className="flex items-center justify-between p-4 border border-destructive/50 rounded-lg bg-background">
+                        <div className="space-y-1">
+                          <h4 className="font-medium text-destructive">Delete Account</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Permanently delete your account and all associated data. This action cannot be undone.
+                          </p>
+                        </div>
+                        <Button 
+                          variant="destructive" 
+                          onClick={() => setOpen(true)}
+                          className="ml-4 min-w-[120px]"
+                        >
+                          Delete Account
+                        </Button>
+                      </div>
+                    </CardContent>
                   </Card>
                 </motion.div>
               </TabsContent>
