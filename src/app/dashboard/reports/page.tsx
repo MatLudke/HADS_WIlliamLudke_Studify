@@ -10,6 +10,7 @@ import { GoalProgressCards } from "@/components/dashboard/goal-progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getStudySessions, exportStudySessionsCSV, exportActivitiesCSV } from '@/lib/firestore';
+import { exportStudySessionsToExcel, exportActivitiesToExcel } from '@/lib/excel-export';
 import type { StudySession } from '@/lib/types';
 import { useAppState } from '@/contexts/AppStateContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -71,16 +72,8 @@ export default function ReportsPage() {
     const handleExportSessions = async () => {
         if (!user) return;
         try {
-            const csvContent = await exportStudySessionsCSV(user.uid);
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `study-sessions-${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            const sessions = await getStudySessions(user.uid);
+            exportStudySessionsToExcel(sessions);
         } catch (error) {
             console.error('Failed to export sessions:', error);
         }
@@ -89,16 +82,7 @@ export default function ReportsPage() {
     const handleExportActivities = async () => {
         if (!user) return;
         try {
-            const csvContent = await exportActivitiesCSV(user.uid);
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `activities-${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            exportActivitiesToExcel(activities);
         } catch (error) {
             console.error('Failed to export activities:', error);
         }

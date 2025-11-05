@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Header } from "@/components/dashboard/header";
 import { ActivityList } from "@/components/dashboard/activity-list";
 import { StudyTimerV2 } from "@/components/dashboard/study-timer-v2";
+import { FlashcardGenerator } from "@/components/dashboard/flashcard-generator";
 import { useGoalReminders } from "@/hooks/use-goal-reminders";
 
 const containerVariants = {
@@ -54,8 +55,9 @@ export default function DashboardPage() {
           initial="hidden"
           animate="visible"
         >
-          <motion.div className="lg:col-span-2" variants={itemVariants}>
+          <motion.div className="lg:col-span-2 space-y-8" variants={itemVariants}>
             <ActivityList />
+            <FlashcardGenerator />
           </motion.div>
           <motion.div variants={itemVariants}>
             <StudyTimerV2 />
