@@ -284,3 +284,38 @@ export const deleteUserAccount = async (userId: string) => {
         throw new Error("Failed to delete user account data");
     }
 };
+
+// Flashcard Sessions
+const flashcardSessionsCollection = collection(db, "flashcardSessions");
+
+export const addFlashcardSession = async (
+    userId: string, 
+    session: Omit<import("./types").FlashcardSession, 'id' | 'userId' | 'createdAt'>
+) => {
+    if (!userId) throw new Error("User not authenticated");
+    const docRef = await addDoc(flashcardSessionsCollection, { 
+        ...session, 
+        userId,
+        createdAt: serverTimestamp()
+    });
+    return docRef.id;
+};
+
+export const getFlashcardSessions = async (userId: string): Promise<import("./types").FlashcardSession[]> => {
+    if (!userId) return [];
+    
+    const q = query(flashcardSessionsCollection, where("userId", "==", userId));
+    const snapshot = await getDocs(q);
+    
+    const sessions = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            ...data,
+            id: doc.id,
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
+        } as import("./types").FlashcardSession;
+    });
+    
+    // Sort by most recent first
+    return sessions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+};

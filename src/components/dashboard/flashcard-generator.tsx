@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Flashcard, type FlashcardQuestion } from "./flashcard";
 import { Input } from "@/components/ui/input";
@@ -8,14 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Sparkles, Loader2, RefreshCw, Trophy, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { addFlashcardSession } from "@/lib/firestore";
+import { useAppState } from "@/contexts/AppStateContext";
 
 export function FlashcardGenerator() {
+  const { user } = useAppState();
   const [subject, setSubject] = useState("");
   const [difficulty, setDifficulty] = useState(2); // 1=Easy, 2=Medium, 3=Hard
   const [flashcards, setFlashcards] = useState<FlashcardQuestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({ correct: 0, incorrect: 0 });
+  const [sessionSaved, setSessionSaved] = useState(false);
 
   const difficultyLabels = ["Easy", "Medium", "Hard"];
   const difficultyColors = [
@@ -60,11 +64,36 @@ export function FlashcardGenerator() {
     }));
   };
 
+  // Save session when all flashcards are answered
+  useEffect(() => {
+    const totalAnswered = stats.correct + stats.incorrect;
+    const allAnswered = totalAnswered === flashcards.length && flashcards.length > 0;
+    
+    if (allAnswered && !sessionSaved && user) {
+      const saveSession = async () => {
+        try {
+          await addFlashcardSession(user.uid, {
+            subject,
+            difficulty,
+            totalCards: flashcards.length,
+            correctAnswers: stats.correct,
+            incorrectAnswers: stats.incorrect,
+          });
+          setSessionSaved(true);
+        } catch (error) {
+          console.error('Failed to save flashcard session:', error);
+        }
+      };
+      saveSession();
+    }
+  }, [stats, flashcards.length, sessionSaved, user, subject, difficulty]);
+
   const handleReset = () => {
     setFlashcards([]);
     setSubject("");
     setStats({ correct: 0, incorrect: 0 });
     setError(null);
+    setSessionSaved(false);
   };
 
   return (
@@ -220,7 +249,7 @@ export function FlashcardGenerator() {
 
           {/* Flashcards */}
           <motion.div 
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6 place-items-center"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-8 sm:gap-10 lg:gap-12 place-items-center"
             initial="hidden"
             animate="visible"
             variants={{
@@ -233,7 +262,7 @@ export function FlashcardGenerator() {
               },
             }}
           >
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence>
               {flashcards.map((card, index) => (
                 <motion.div
                   key={card.id}

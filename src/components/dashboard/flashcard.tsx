@@ -70,7 +70,7 @@ export function Flashcard({ question, onAnswer }: FlashcardProps) {
         damping: 25,
         duration: 0.2,
       }}
-      className="w-[280px] h-[400px] rounded-xl p-8 flex flex-col items-center justify-start gap-5 shadow-xl hover:shadow-2xl transition-shadow duration-150"
+      className="w-full max-w-[280px] min-w-[240px] h-[380px] sm:h-[400px] rounded-xl p-6 sm:p-8 flex flex-col items-center justify-start gap-4 sm:gap-5 shadow-xl hover:shadow-2xl transition-shadow duration-150"
       style={{
         background: question.gradient
           ? `radial-gradient(
@@ -94,13 +94,13 @@ export function Flashcard({ question, onAnswer }: FlashcardProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <p className="text-lg font-semibold text-gray-900 leading-snug" style={{ textShadow: '0 1px 2px rgba(255, 255, 255, 0.3)' }}>
+        <p className="text-base sm:text-lg font-semibold text-gray-900 leading-snug" style={{ textShadow: '0 1px 2px rgba(255, 255, 255, 0.3)' }}>
           {question.question}
         </p>
       </motion.div>
 
       {/* Options */}
-      <div className="w-full flex flex-col gap-3">
+      <div className="w-full flex flex-col gap-2 sm:gap-3">
         {question.type === "multiple-choice" && question.options ? (
           question.options.map((option, index) => (
             <motion.button
@@ -112,13 +112,14 @@ export function Flashcard({ question, onAnswer }: FlashcardProps) {
               transition={{ 
                 delay: 0.3 + index * 0.1,
                 type: "spring",
-                stiffness: 500,
-                damping: 30,
+                stiffness: 800,
+                damping: 20,
+                mass: 0.5
               }}
-              whileHover={!revealed ? { scale: 1.05, y: -2 } : {}}
-              whileTap={!revealed ? { scale: 0.96 } : {}}
+              whileHover={!revealed ? { scale: 1.08, transition: { duration: 0 } } : {}}
+              whileTap={!revealed ? { scale: 0.95, transition: { duration: 0 } } : {}}
               className={cn(
-                "w-full h-[50px] px-3 py-2 rounded-lg text-xs font-medium text-gray-900 transition-all duration-100 flex items-center justify-center text-center leading-tight",
+                "w-full h-[45px] sm:h-[50px] px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-gray-900 flex items-center justify-center text-center leading-tight",
                 getButtonStyle(option),
                 !revealed && "hover:shadow-xl cursor-pointer"
               )}
@@ -133,11 +134,17 @@ export function Flashcard({ question, onAnswer }: FlashcardProps) {
               disabled={revealed}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              whileHover={!revealed ? { scale: 1.05, y: -2 } : {}}
-              whileTap={!revealed ? { scale: 0.96 } : {}}
+              transition={{ 
+                delay: 0.3,
+                type: "spring",
+                stiffness: 800,
+                damping: 20,
+                mass: 0.5
+              }}
+              whileHover={!revealed ? { scale: 1.08, transition: { duration: 0 } } : {}}
+              whileTap={!revealed ? { scale: 0.95, transition: { duration: 0 } } : {}}
               className={cn(
-                "w-full h-[50px] rounded-lg text-sm font-medium text-gray-900 transition-all duration-100 flex items-center justify-center",
+                "w-full h-[45px] sm:h-[50px] rounded-lg text-sm font-medium text-gray-900 flex items-center justify-center",
                 getButtonStyle("True"),
                 !revealed && "hover:shadow-xl cursor-pointer"
               )}
@@ -149,11 +156,17 @@ export function Flashcard({ question, onAnswer }: FlashcardProps) {
               disabled={revealed}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 }}
-              whileHover={!revealed ? { scale: 1.05, y: -2 } : {}}
-              whileTap={!revealed ? { scale: 0.96 } : {}}
+              transition={{ 
+                delay: 0.4,
+                type: "spring",
+                stiffness: 800,
+                damping: 20,
+                mass: 0.5
+              }}
+              whileHover={!revealed ? { scale: 1.08, transition: { duration: 0 } } : {}}
+              whileTap={!revealed ? { scale: 0.95, transition: { duration: 0 } } : {}}
               className={cn(
-                "w-full h-[50px] rounded-lg text-sm font-medium text-gray-900 transition-all duration-100 flex items-center justify-center",
+                "w-full h-[45px] sm:h-[50px] rounded-lg text-sm font-medium text-gray-900 flex items-center justify-center",
                 getButtonStyle("False"),
                 !revealed && "hover:shadow-xl cursor-pointer"
               )}

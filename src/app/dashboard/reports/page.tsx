@@ -7,6 +7,7 @@ import { Header } from "@/components/dashboard/header";
 import { ReportCharts } from "@/components/dashboard/report-charts";
 import { SessionHistory } from "@/components/dashboard/session-history";
 import { GoalProgressCards } from "@/components/dashboard/goal-progress";
+import { FlashcardHistory } from "@/components/dashboard/flashcard-history";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getStudySessions, exportStudySessionsCSV, exportActivitiesCSV } from '@/lib/firestore';
@@ -218,6 +219,13 @@ export default function ReportsPage() {
                     transition={{ duration: 0.7, delay: 0.9, ease: "easeOut" }}
                 >
                     <SessionHistory user={user} />
+                </motion.div>
+                <motion.div
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 1.0, ease: "easeOut" }}
+                >
+                    <FlashcardHistory userId={user?.uid || null} />
                 </motion.div>
             </motion.div>
         </main>

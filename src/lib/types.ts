@@ -65,3 +65,14 @@ export type ScheduledNotification = {
   activityId?: string;
   sent: boolean;
 };
+
+export type FlashcardSession = {
+  id: string;
+  userId: string;
+  subject: string;
+  difficulty: number; // 1=Easy, 2=Medium, 3=Hard
+  totalCards: number;
+  correctAnswers: number;
+  incorrectAnswers: number;
+  createdAt: Date;
+};
