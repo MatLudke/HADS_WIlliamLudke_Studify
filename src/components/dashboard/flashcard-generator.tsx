@@ -10,6 +10,7 @@ import { Sparkles, Loader2, RefreshCw, Trophy, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { addFlashcardSession } from "@/lib/firestore";
 import { useAppState } from "@/contexts/AppStateContext";
+import { getTranslations } from "@/lib/translations";
 
 export function FlashcardGenerator() {
   const { user } = useAppState();
@@ -20,8 +21,17 @@ export function FlashcardGenerator() {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({ correct: 0, incorrect: 0 });
   const [sessionSaved, setSessionSaved] = useState(false);
+  const [userLanguage, setUserLanguage] = useState('en');
+  const [t, setT] = useState(getTranslations('en'));
 
-  const difficultyLabels = ["Easy", "Medium", "Hard"];
+  // Detect user's OS/browser language on mount
+  useEffect(() => {
+    const detectedLanguage = navigator.language.split('-')[0]; // e.g., 'en-US' -> 'en'
+    setUserLanguage(detectedLanguage);
+    setT(getTranslations(detectedLanguage));
+  }, []);
+
+  const difficultyLabels = [t.easy, t.medium, t.hard];
   const difficultyColors = [
     "text-green-600 dark:text-green-400",
     "text-yellow-600 dark:text-yellow-400", 
@@ -38,7 +48,7 @@ export function FlashcardGenerator() {
       const response = await fetch('/api/flashcards/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject, count: 4, difficulty }),
+        body: JSON.stringify({ subject, count: 4, difficulty, language: userLanguage }),
       });
 
       if (!response.ok) {
@@ -49,7 +59,7 @@ export function FlashcardGenerator() {
       setFlashcards(data.flashcards);
       setStats({ correct: 0, incorrect: 0 });
     } catch (err) {
-      setError('Failed to generate flashcards. Please try again.');
+      setError(t.error);
       console.error(err);
     } finally {
       setLoading(false);
@@ -101,7 +111,7 @@ export function FlashcardGenerator() {
       {/* Header */}
       <div className="flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-primary" />
-        <h2 className="text-xl font-semibold">AI Flashcards</h2>
+        <h2 className="text-xl font-semibold">{t.title}</h2>
       </div>
 
       {/* Input Section */}
@@ -113,7 +123,7 @@ export function FlashcardGenerator() {
         >
           <div className="flex gap-2">
             <Input
-              placeholder="What subject do you want to study?"
+              placeholder={t.placeholder}
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
@@ -128,12 +138,12 @@ export function FlashcardGenerator() {
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating...
+                  {t.generating}...
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  Generate
+                  {t.generate}
                 </>
               )}
             </Button>
@@ -142,7 +152,7 @@ export function FlashcardGenerator() {
           {/* Difficulty Slider */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Difficulty Level</label>
+              <label className="text-sm font-medium">{t.difficulty}</label>
               <span className={cn("text-sm font-semibold", difficultyColors[difficulty - 1])}>
                 {difficultyLabels[difficulty - 1]}
               </span>
@@ -156,9 +166,9 @@ export function FlashcardGenerator() {
               className="w-full"
             />
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Easy</span>
-              <span>Medium</span>
-              <span>Hard</span>
+              <span>{t.easy}</span>
+              <span>{t.medium}</span>
+              <span>{t.hard}</span>
             </div>
           </div>
 
@@ -191,7 +201,7 @@ export function FlashcardGenerator() {
                   <Trophy className="h-5 w-5" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-medium opacity-90">Correct</span>
+                  <span className="text-xs font-medium opacity-90">{t.correct}</span>
                   <span className="text-2xl font-bold tabular-nums">{stats.correct}</span>
                 </div>
               </motion.div>
@@ -209,7 +219,7 @@ export function FlashcardGenerator() {
                   <Target className="h-5 w-5" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-medium opacity-90">Missed</span>
+                  <span className="text-xs font-medium opacity-90">{t.incorrect}</span>
                   <span className="text-2xl font-bold tabular-nums">{stats.incorrect}</span>
                 </div>
               </motion.div>
@@ -227,7 +237,7 @@ export function FlashcardGenerator() {
                     <Sparkles className="h-5 w-5" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xs font-medium opacity-90">Accuracy</span>
+                    <span className="text-xs font-medium opacity-90">{t.accuracy}</span>
                     <span className="text-2xl font-bold tabular-nums">
                       {Math.round((stats.correct / (stats.correct + stats.incorrect)) * 100)}%
                     </span>
@@ -243,7 +253,7 @@ export function FlashcardGenerator() {
               className="gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-150 hover:scale-105 active:scale-95"
             >
               <RefreshCw className="h-4 w-4" />
-              New Set
+              {t.newSet}
             </Button>
           </div>
 

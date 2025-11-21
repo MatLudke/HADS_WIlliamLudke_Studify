@@ -5,6 +5,7 @@ export interface GenerateFlashcardsInput {
   subject: string;
   count?: number;
   difficulty?: number; // 1=Easy, 2=Medium, 3=Hard
+  language?: string; // Browser/OS language code (e.g., 'en', 'es', 'pt', 'fr')
 }
 
 // Initialize OpenAI client with Poe API configuration
@@ -60,7 +61,7 @@ function generateRandomGradient(): { color1: string; color2: string; color3: str
  * Generate flashcards using Poe API (GPT-4o-mini model)
  */
 export async function generateFlashcards(input: GenerateFlashcardsInput): Promise<FlashcardQuestion[]> {
-  const { subject, count = 4, difficulty = 2 } = input;
+  const { subject, count = 4, difficulty = 2, language = 'en' } = input;
 
   const difficultyDescriptions = {
     1: {
@@ -82,7 +83,12 @@ export async function generateFlashcards(input: GenerateFlashcardsInput): Promis
 
   const difficultyInfo = difficultyDescriptions[difficulty as 1 | 2 | 3] || difficultyDescriptions[2];
 
-  const prompt = `Generate exactly ${count} ${difficultyInfo.level} educational flashcard questions about "${subject}".
+  // Language instruction based on detected language
+  const languageInstruction = language !== 'en' 
+    ? `\n\nIMPORTANT: Generate ALL content (questions, options, answers) in the SAME LANGUAGE as the subject input. The user submitted the subject in ${language.toUpperCase()} language, so respond entirely in that language.`
+    : '';
+
+  const prompt = `Generate exactly ${count} ${difficultyInfo.level} educational flashcard questions about "${subject}".${languageInstruction}
   
 DIFFICULTY: ${difficultyInfo.level}
 ${difficultyInfo.description}
