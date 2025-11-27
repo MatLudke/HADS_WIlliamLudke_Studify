@@ -9,64 +9,40 @@ import { sendEmail } from './email-notifications';
 export interface GoalProgress {
   activityId: string;
   activityTitle: string;
-  goalType: 'daily' | 'weekly' | 'monthly';
-  goalTarget: number; // target minutes
-  currentProgress: number; // minutes completed in current period
+  goalType: 'weekly'; // Only weekly now (Duolingo-style)
+  goalTarget: number; // target sessions per week (1-7)
+  currentProgress: number; // sessions completed this week
   progressPercentage: number;
   isOnTrack: boolean;
   isBehind: boolean;
   periodStart: Date;
   periodEnd: Date;
-  timeRemaining: number; // minutes remaining to reach goal
+  sessionsRemaining: number; // sessions remaining to reach goal
+  streakWeeks: number; // consecutive weeks meeting goal
 }
 
 /**
- * Get the start and end dates for a goal period
+ * Get the start and end dates for the current week (Monday to Sunday)
  */
-export function getGoalPeriodDates(goalType: 'daily' | 'weekly' | 'monthly', goalStartDate: Date): { start: Date; end: Date } {
+export function getCurrentWeekDates(): { start: Date; end: Date } {
   const now = new Date();
-  const start = new Date(goalStartDate);
   
-  switch (goalType) {
-    case 'daily': {
-      // Daily: Today from 00:00 to 23:59
-      const todayStart = new Date(now);
-      todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date(now);
-      todayEnd.setHours(23, 59, 59, 999);
-      return { start: todayStart, end: todayEnd };
-    }
-    
-    case 'weekly': {
-      // Weekly: Monday to Sunday
-      const dayOfWeek = now.getDay();
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // If Sunday (0), go back 6 days
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() + mondayOffset);
-      weekStart.setHours(0, 0, 0, 0);
-      
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-      
-      return { start: weekStart, end: weekEnd };
-    }
-    
-    case 'monthly': {
-      // Monthly: First to last day of current month
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      monthStart.setHours(0, 0, 0, 0);
-      
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      monthEnd.setHours(23, 59, 59, 999);
-      
-      return { start: monthStart, end: monthEnd };
-    }
-  }
+  // Weekly: Monday to Sunday
+  const dayOfWeek = now.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // If Sunday (0), go back 6 days
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() + mondayOffset);
+  weekStart.setHours(0, 0, 0, 0);
+  
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+  
+  return { start: weekStart, end: weekEnd };
 }
 
 /**
- * Calculate progress for a single activity goal
+ * Calculate progress for a single activity goal (weekly sessions)
  */
 export function calculateGoalProgress(
   activity: Activity,
@@ -76,13 +52,12 @@ export function calculateGoalProgress(
     return null;
   }
 
-  const { start, end } = getGoalPeriodDates(activity.goalType, activity.goalStartDate);
+  const { start, end } = getCurrentWeekDates();
   
-  // Filter sessions for this activity within the current period
+  // Filter sessions for this activity within the current week
   const relevantSessions = studySessions.filter(session => {
     if (session.activityId !== activity.id) return false;
     
-    // Use endAt instead of completedAt
     const sessionDate = session.endAt instanceof Date 
       ? session.endAt 
       : new Date(session.endAt);
@@ -90,30 +65,57 @@ export function calculateGoalProgress(
     return sessionDate >= start && sessionDate <= end;
   });
 
-  // Calculate total minutes studied for this activity in the current period
-  const currentProgress = relevantSessions.reduce((total, session) => {
-    return total + (session.duration || 0);
-  }, 0);
+  // Count completed sessions (not minutes!)
+  const currentProgress = relevantSessions.length;
 
   const progressPercentage = activity.goalTarget > 0 
     ? Math.round((currentProgress / activity.goalTarget) * 100) 
     : 0;
 
-  // Calculate expected progress based on time elapsed in the period
+  // Calculate expected progress based on day of week
   const now = new Date();
-  const totalPeriodDuration = end.getTime() - start.getTime();
-  const elapsedDuration = now.getTime() - start.getTime();
-  const periodProgress = elapsedDuration / totalPeriodDuration;
-  const expectedProgress = activity.goalTarget * periodProgress;
+  const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay(); // Monday=1, Sunday=7
+  const expectedSessions = (activity.goalTarget / 7) * dayOfWeek;
 
-  // Consider "on track" if within 10% of expected progress or ahead
-  const isOnTrack = currentProgress >= expectedProgress * 0.9;
-  const isBehind = currentProgress < expectedProgress * 0.9;
+  // Consider "on track" if current >= expected (or close)
+  const isOnTrack = currentProgress >= Math.floor(expectedSessions);
+  const isBehind = currentProgress < Math.floor(expectedSessions);
+
+  // Calculate streak (consecutive weeks meeting goal)
+  let streakWeeks = 0;
+  if (activity.goalStartDate) {
+    const goalStart = new Date(activity.goalStartDate);
+    let checkWeekStart = new Date(start);
+    
+    // Go backwards week by week
+    while (checkWeekStart >= goalStart) {
+      const checkWeekEnd = new Date(checkWeekStart);
+      checkWeekEnd.setDate(checkWeekStart.getDate() + 6);
+      checkWeekEnd.setHours(23, 59, 59, 999);
+      
+      const weekSessions = studySessions.filter(session => {
+        if (session.activityId !== activity.id) return false;
+        const sessionDate = session.endAt instanceof Date 
+          ? session.endAt 
+          : new Date(session.endAt);
+        return sessionDate >= checkWeekStart && sessionDate <= checkWeekEnd;
+      });
+      
+      if (weekSessions.length >= activity.goalTarget) {
+        streakWeeks++;
+      } else {
+        break; // Streak broken
+      }
+      
+      // Move to previous week
+      checkWeekStart.setDate(checkWeekStart.getDate() - 7);
+    }
+  }
 
   return {
     activityId: activity.id,
     activityTitle: activity.title,
-    goalType: activity.goalType,
+    goalType: 'weekly',
     goalTarget: activity.goalTarget,
     currentProgress,
     progressPercentage,
@@ -121,7 +123,8 @@ export function calculateGoalProgress(
     isBehind,
     periodStart: start,
     periodEnd: end,
-    timeRemaining: Math.max(0, activity.goalTarget - currentProgress)
+    sessionsRemaining: Math.max(0, activity.goalTarget - currentProgress),
+    streakWeeks
   };
 }
 
@@ -145,26 +148,22 @@ export function calculateAllGoalsProgress(
 }
 
 /**
- * Format goal progress message for email
+ * Format goal progress message for email (weekly sessions)
  */
 function formatGoalProgressMessage(progress: GoalProgress): string {
-  const percentBehind = Math.round(100 - progress.progressPercentage);
-  const hoursRemaining = Math.floor(progress.timeRemaining / 60);
-  const minutesRemaining = progress.timeRemaining % 60;
+  const daysLeft = Math.ceil((progress.periodEnd.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
   
-  let message = `You're behind on your ${progress.goalType} study goal for "${progress.activityTitle}".\n\n`;
-  message += `📊 Progress: ${progress.currentProgress} / ${progress.goalTarget} minutes (${progress.progressPercentage}%)\n`;
-  message += `⏰ Time remaining: ${hoursRemaining}h ${minutesRemaining}m\n\n`;
+  let message = `You're behind on your weekly study goal for "${progress.activityTitle}".\n\n`;
+  message += `📊 Progress: ${progress.currentProgress} / ${progress.goalTarget} sessions (${progress.progressPercentage}%)\n`;
+  message += `🎯 Sessions remaining: ${progress.sessionsRemaining}\n`;
   
-  if (progress.goalType === 'daily') {
-    message += `Don't worry! There's still time today to catch up. Even 15 minutes of focused study makes a difference! 💪`;
-  } else if (progress.goalType === 'weekly') {
-    const daysLeft = Math.ceil((progress.periodEnd.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    message += `You have ${daysLeft} days left this week. Break it down into smaller daily sessions to stay on track! 🎯`;
-  } else {
-    const daysLeft = Math.ceil((progress.periodEnd.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    message += `You have ${daysLeft} days left this month. Small, consistent efforts lead to big results! 🚀`;
+  if (progress.streakWeeks > 0) {
+    message += `🔥 Current streak: ${progress.streakWeeks} week${progress.streakWeeks > 1 ? 's' : ''}!\n`;
   }
+  
+  message += `\n`;
+  message += `You have ${daysLeft} day${daysLeft > 1 ? 's' : ''} left this week. `;
+  message += `Each study session counts - keep your streak alive! 💪🔥`;
 
   return message;
 }
@@ -228,7 +227,7 @@ export async function checkAndSendGoalReminders(
     const reminderKey = `goal_reminder_${activity.id}_${progress.goalType}_${progress.periodStart.toISOString()}`;
     
     if (wasRecentlyReminded(reminderKey)) {
-      console.log(`⏭️ Skipping reminder for ${activity.title} - already sent within 24h`);
+      // Already sent reminder within 24h
       results.skipped++;
       continue;
     }
@@ -244,15 +243,12 @@ export async function checkAndSendGoalReminders(
       });
 
       if (result.success) {
-        console.log(`✅ Sent goal reminder for ${activity.title}`);
         markReminderSent(reminderKey);
         results.sent++;
       } else {
-        console.error(`❌ Failed to send reminder for ${activity.title}:`, result.error);
         results.errors.push(`${activity.title}: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error(`❌ Error sending reminder for ${activity.title}:`, error);
       results.errors.push(`${activity.title}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

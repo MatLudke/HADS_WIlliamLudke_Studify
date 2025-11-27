@@ -11,9 +11,11 @@ import { cn } from "@/lib/utils";
 import { addFlashcardSession } from "@/lib/firestore";
 import { useAppState } from "@/contexts/AppStateContext";
 import { getTranslations } from "@/lib/translations";
+import { useToast } from "@/hooks/use-toast";
 
 export function FlashcardGenerator() {
   const { user } = useAppState();
+  const { toast } = useToast();
   const [subject, setSubject] = useState("");
   const [difficulty, setDifficulty] = useState(2); // 1=Easy, 2=Medium, 3=Hard
   const [flashcards, setFlashcards] = useState<FlashcardQuestion[]>([]);
@@ -24,11 +26,22 @@ export function FlashcardGenerator() {
   const [userLanguage, setUserLanguage] = useState('en');
   const [t, setT] = useState(getTranslations('en'));
 
-  // Detect user's OS/browser language on mount
+  // Detect and persist user's language preference
   useEffect(() => {
-    const detectedLanguage = navigator.language.split('-')[0]; // e.g., 'en-US' -> 'en'
-    setUserLanguage(detectedLanguage);
-    setT(getTranslations(detectedLanguage));
+    // Check localStorage first
+    const savedLanguage = localStorage.getItem('userLanguage');
+    const supportedLanguages = ['en', 'es', 'pt', 'fr', 'de', 'it', 'ja', 'zh', 'ko', 'ru', 'ar', 'hi'];
+    
+    if (savedLanguage && supportedLanguages.includes(savedLanguage)) {
+      setUserLanguage(savedLanguage);
+      setT(getTranslations(savedLanguage));
+    } else {
+      // Fall back to browser detection
+      const detectedLanguage = navigator.language.split('-')[0];
+      setUserLanguage(detectedLanguage);
+      setT(getTranslations(detectedLanguage));
+      localStorage.setItem('userLanguage', detectedLanguage);
+    }
   }, []);
 
   const difficultyLabels = [t.easy, t.medium, t.hard];
@@ -90,13 +103,24 @@ export function FlashcardGenerator() {
             incorrectAnswers: stats.incorrect,
           });
           setSessionSaved(true);
+          // Notify user of success
+          toast({
+            title: "Session Saved!",
+            description: `Your ${subject} flashcard progress has been recorded.`,
+          });
         } catch (error) {
           console.error('Failed to save flashcard session:', error);
+          // Notify user of failure
+          toast({
+            variant: "destructive",
+            title: "Save Failed",
+            description: "Your session couldn't be saved. Please check your connection.",
+          });
         }
       };
       saveSession();
     }
-  }, [stats, flashcards.length, sessionSaved, user, subject, difficulty]);
+  }, [stats, flashcards.length, sessionSaved, user, subject, difficulty, toast]);
 
   const handleReset = () => {
     setFlashcards([]);

@@ -20,8 +20,10 @@ import { formatStudyTime } from '@/lib/utils';
 
 interface ReportStats {
     sessionsCompleted: number;
-    focusMinutes: number; // Changed from focusHours to focusMinutes
+    focusMinutes: number;
     efficiency: number;
+    totalStreakWeeks: number;
+    longestStreak: number;
 }
 
 export default function ReportsPage() {
@@ -30,6 +32,8 @@ export default function ReportsPage() {
         sessionsCompleted: 0,
         focusMinutes: 0,
         efficiency: 0,
+        totalStreakWeeks: 0,
+        longestStreak: 0,
     });
     const [loading, setLoading] = useState(true);
 
@@ -38,7 +42,7 @@ export default function ReportsPage() {
             fetchReportData(user.uid);
         } else {
             setLoading(false);
-            setStats({ sessionsCompleted: 0, focusMinutes: 0, efficiency: 0 });
+            setStats({ sessionsCompleted: 0, focusMinutes: 0, efficiency: 0, totalStreakWeeks: 0, longestStreak: 0 });
         }
     }, [user, activities]); // Recalculate when activities change
 
@@ -56,15 +60,24 @@ export default function ReportsPage() {
                 efficiency = Math.round((completedActivities / activities.length) * 100);
             }
 
+            // Calculate streaks
+            const { calculateAllGoalsProgress } = await import('@/lib/goal-tracking');
+            const goalsProgress = calculateAllGoalsProgress(activities, sessions);
+            
+            const totalStreakWeeks = goalsProgress.reduce((sum, p) => sum + p.streakWeeks, 0);
+            const longestStreak = Math.max(0, ...goalsProgress.map(p => p.streakWeeks));
+
             setStats({
                 sessionsCompleted: totalSessions,
                 focusMinutes: totalMinutes,
                 efficiency: efficiency,
+                totalStreakWeeks: totalStreakWeeks,
+                longestStreak: longestStreak,
             });
 
         } catch (error) {
             console.error("Failed to fetch report data:", error);
-            setStats({ sessionsCompleted: 0, focusMinutes: 0, efficiency: 0 });
+            setStats({ sessionsCompleted: 0, focusMinutes: 0, efficiency: 0, totalStreakWeeks: 0, longestStreak: 0 });
         } finally {
             setLoading(false);
         }
@@ -162,24 +175,73 @@ export default function ReportsPage() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
                     >
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Efficiency</CardTitle>
+                        <Card className="relative overflow-hidden">
+                            {/* Duolingo-style gradient background - better dark mode opacity */}
+                            {stats.longestStreak > 0 && (
+                                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-red-500/10 dark:from-orange-500/20 dark:via-transparent dark:to-red-500/20" />
+                            )}
+                            <CardHeader className="relative">
+                                <CardTitle className="flex items-center gap-2">
+                                    {stats.longestStreak > 0 ? '🔥' : '📊'}
+                                    {stats.longestStreak > 0 ? 'Streak Power' : 'Weekly Goals'}
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="relative">
                                 {loading ? (
                                     <Skeleton className="h-10 w-20" />
+                                ) : stats.longestStreak > 0 ? (
+                                    <div className="space-y-3">
+                                        <motion.div 
+                                            className="text-4xl font-bold flex items-center gap-2"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ duration: 0.5, delay: 0.7, ease: "backOut" }}
+                                        >
+                                            <span className="text-orange-700 dark:text-orange-300">
+                                                {stats.longestStreak}
+                                            </span>
+                                            <span className="text-2xl">🔥</span>
+                                        </motion.div>
+                                        <p className="text-xs text-muted-foreground">week streak (longest)</p>
+                                        {stats.totalStreakWeeks > stats.longestStreak && (
+                                            <div className="pt-2 border-t">
+                                                <p className="text-sm font-medium text-muted-foreground">
+                                                    Total: {stats.totalStreakWeeks} weeks across all goals
+                                                </p>
+                                            </div>
+                                        )}
+                                        <div className="pt-2 flex gap-1">
+                                            {[...Array(Math.min(stats.longestStreak, 7))].map((_, i) => (
+                                                <motion.span
+                                                    key={i}
+                                                    initial={{ opacity: 0, scale: 0 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    transition={{ delay: 0.8 + (i * 0.1), duration: 0.3 }}
+                                                    className="text-lg"
+                                                >
+                                                    🔥
+                                                </motion.span>
+                                            ))}
+                                            {stats.longestStreak > 7 && (
+                                                <span className="text-sm font-bold text-orange-700 dark:text-orange-300 self-end">
+                                                    +{stats.longestStreak - 7}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
                                 ) : (
-                                    <motion.div 
-                                        className="text-4xl font-bold"
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ duration: 0.5, delay: 0.7, ease: "backOut" }}
-                                    >
-                                        {stats.efficiency}%
-                                    </motion.div>
+                                    <div>
+                                        <motion.div 
+                                            className="text-4xl font-bold text-muted-foreground"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ duration: 0.5, delay: 0.7, ease: "backOut" }}
+                                        >
+                                            0
+                                        </motion.div>
+                                        <p className="text-xs text-muted-foreground">Complete weekly goals to start a streak!</p>
+                                    </div>
                                 )}
-                                <p className="text-xs text-muted-foreground">Percentage of completed activities.</p>
                             </CardContent>
                         </Card>
                     </motion.div>

@@ -25,11 +25,19 @@ export const getActivities = async (userId: string): Promise<Activity[]> => {
     const activities = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
-            ...data,
             id: doc.id,
-            // Convert Firestore Timestamps to JavaScript Dates for client components
-            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : data.updatedAt,
+            userId: data.userId,
+            title: data.title,
+            subject: data.subject,
+            estimatedDuration: data.estimatedDuration,
+            priority: data.priority,
+            status: data.status,
+            goalType: data.goalType,
+            goalTarget: data.goalTarget,
             goalStartDate: data.goalStartDate instanceof Timestamp ? data.goalStartDate.toDate() : data.goalStartDate,
+            goalRemindersEnabled: data.goalRemindersEnabled,
+            savedTimerProgress: data.savedTimerProgress,
+            savedTimerDuration: data.savedTimerDuration,
         } as Activity;
     });
     return activities;
@@ -39,6 +47,14 @@ export const updateActivity = async (id: string, activity: Partial<Omit<Activity
     const docRef = doc(db, "activities", id);
     await updateDoc(docRef, activity);
     revalidatePath("/dashboard");
+};
+
+export const updateActivityTimerProgress = async (id: string, savedTimerProgress: number | null, savedTimerDuration: number | null) => {
+    const docRef = doc(db, "activities", id);
+    await updateDoc(docRef, {
+        savedTimerProgress: savedTimerProgress ?? null,
+        savedTimerDuration: savedTimerDuration ?? null,
+    });
 };
 
 export const deleteActivity = async (id: string) => {
@@ -85,6 +101,42 @@ export const getActiveSession = async (userId: string): Promise<ActiveSession | 
     const q = query(collection(db, "activeSessions"), where("userId", "==", userId));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
+    
+    // Handle multiple sessions - clean up duplicates
+    if (snapshot.docs.length > 1) {
+        // Multiple sessions detected - clean up (logged in dev mode only)
+        
+        // Sort by lastUpdated to keep the most recent
+        const sortedDocs = snapshot.docs.sort((a, b) => {
+            const aTime = a.data().lastUpdated instanceof Timestamp 
+                ? a.data().lastUpdated.toMillis() 
+                : new Date(a.data().lastUpdated).getTime();
+            const bTime = b.data().lastUpdated instanceof Timestamp 
+                ? b.data().lastUpdated.toMillis() 
+                : new Date(b.data().lastUpdated).getTime();
+            return bTime - aTime;
+        });
+        
+        // Delete older sessions
+        const deletePromises = sortedDocs.slice(1).map((doc) => deleteDoc(doc.ref));
+        await Promise.all(deletePromises);
+        
+        // Use the most recent session
+        const doc = sortedDocs[0];
+        const data = doc.data();
+        
+        return {
+            id: doc.id,
+            userId: data.userId,
+            activityId: data.activityId,
+            mode: data.mode,
+            currentTime: data.currentTime,
+            duration: data.duration,
+            startedAt: data.startedAt instanceof Timestamp ? data.startedAt.toDate() : data.startedAt,
+            lastUpdated: data.lastUpdated instanceof Timestamp ? data.lastUpdated.toDate() : data.lastUpdated,
+        };
+    }
+    
     const doc = snapshot.docs[0];
     const data = doc.data();
     
@@ -216,8 +268,6 @@ export const deleteSessionHistory = async (userId: string) => {
         ]);
         
         revalidatePath("/dashboard/reports");
-        
-        console.log(`Successfully deleted session history for user: ${userId}`);
     } catch (error) {
         console.error("Error deleting session history:", error);
         throw new Error("Failed to delete session history");
@@ -277,8 +327,6 @@ export const deleteUserAccount = async (userId: string) => {
         
         revalidatePath("/dashboard");
         revalidatePath("/dashboard/reports");
-        
-        console.log(`Successfully deleted all data for user: ${userId}`);
     } catch (error) {
         console.error("Error deleting user account data:", error);
         throw new Error("Failed to delete user account data");

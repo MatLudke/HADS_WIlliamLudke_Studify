@@ -47,32 +47,49 @@ export function ReportCharts() {
       setLoading(true);
       const sessions: StudySession[] = await getStudySessions(userId);
       
-      // Group sessions by subject
-      const subjectData = sessions.reduce((acc, session) => {
-        if (!acc[session.subject]) {
-          acc[session.subject] = 0;
-        }
-        acc[session.subject] += session.duration;
-        return acc;
-      }, {} as Record<string, number>);
-
-      // Match with activities and their goals
-      const processedData: ChartData[] = Object.entries(subjectData).map(([subject, minutes]) => {
-        // Find activities with this subject that have goals
-        const activitiesForSubject = activities.filter(
-          a => a.subject === subject && a.goalType && a.goalType !== 'none'
-        );
+      // Get current activity IDs to filter out deleted activities
+      const activeActivityIds = new Set(activities.map(a => a.id));
+      
+      // Filter sessions to only include existing activities
+      const validSessions = sessions.filter(session => 
+        activeActivityIds.has(session.activityId)
+      );
+      
+      // Group sessions by activity ID first, then aggregate by subject
+      const activityData: Record<string, { minutes: number; activity: Activity }> = {};
+      
+      validSessions.forEach(session => {
+        const activity = activities.find(a => a.id === session.activityId);
+        if (!activity) return;
         
-        // Sum up all goal targets for this subject
-        const totalGoal = activitiesForSubject.reduce((sum, activity) => {
-          return sum + (activity.goalTarget || 0);
-        }, 0);
+        if (!activityData[activity.id]) {
+          activityData[activity.id] = { minutes: 0, activity };
+        }
+        activityData[activity.id].minutes += session.duration;
+      });
+      
+      // Aggregate by subject
+      const subjectData: Record<string, { studiedMinutes: number; goalSessions: number }> = {};
+      
+      Object.values(activityData).forEach(({ minutes, activity }) => {
+        if (!subjectData[activity.subject]) {
+          subjectData[activity.subject] = { studiedMinutes: 0, goalSessions: 0 };
+        }
+        subjectData[activity.subject].studiedMinutes += minutes;
+        
+        // Add goal sessions (now it's sessions per week, not minutes)
+        if (activity.goalType === 'weekly' && activity.goalTarget) {
+          subjectData[activity.subject].goalSessions += activity.goalTarget;
+        }
+      });
 
+      // Convert to chart data
+      const processedData: ChartData[] = Object.entries(subjectData).map(([subject, data]) => {
         return {
           subject,
-          studiedMinutes: minutes,
-          goalMinutes: totalGoal,
-          hasGoal: totalGoal > 0
+          studiedMinutes: data.studiedMinutes,
+          goalMinutes: data.goalSessions * 25, // Convert sessions to approximate minutes (25 min/session)
+          hasGoal: data.goalSessions > 0
         };
       });
       
@@ -142,10 +159,12 @@ export function ReportCharts() {
               <ChartTooltip 
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
-                    // The order is: first bar (goalMinutes), second bar (studiedMinutes)
-                    const goalMinutes = payload[0]?.value as number || 0;
-                    const studiedMinutes = payload[1]?.value as number || 0;
-                    const hasGoal = goalMinutes > 0;
+                    const data = reportData.find(d => d.subject === label);
+                    if (!data) return null;
+                    
+                    const studiedMinutes = data.studiedMinutes;
+                    const goalMinutes = data.goalMinutes;
+                    const hasGoal = data.hasGoal;
                     
                     return (
                       <div className="rounded-lg border bg-background p-3 shadow-sm">
@@ -156,7 +175,11 @@ export function ReportCharts() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--primary))' }} />
+                            <div className="w-3 h-3 rounded-sm" style={{ 
+                              backgroundColor: hasGoal && studiedMinutes >= goalMinutes 
+                                ? 'hsl(var(--success))' 
+                                : 'hsl(var(--primary))' 
+                            }} />
                             <span className="text-sm">
                               Studied: <span className="font-bold">{formatDuration(studiedMinutes)}</span>
                             </span>
@@ -164,9 +187,9 @@ export function ReportCharts() {
                           {hasGoal && (
                             <>
                               <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-1))' }} />
-                                <span className="text-sm">
-                                  Goal: <span className="font-bold">{formatDuration(goalMinutes)}</span>
+                                <div className="w-3 h-3 rounded-sm bg-muted-foreground/30" />
+                                <span className="text-sm text-muted-foreground">
+                                  Goal: {formatDuration(goalMinutes)}
                                 </span>
                               </div>
                               <div className="pt-1 border-t">
@@ -186,34 +209,11 @@ export function ReportCharts() {
                   return null;
                 }}
               />
-              <Legend 
-                content={({ payload }) => (
-                  <div className="flex justify-center gap-6 mt-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-1))' }} />
-                      <span className="text-sm text-muted-foreground">Goal Target</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--primary))' }} />
-                      <span className="text-sm text-muted-foreground">Time Studied</span>
-                    </div>
-                  </div>
-                )}
-              />
-              {/* Background bar (Goal) - Wider and semi-transparent, visible in dark mode */}
-              <Bar 
-                dataKey="goalMinutes" 
-                fill="hsl(var(--chart-1))" 
-                radius={[8, 8, 8, 8]}
-                maxBarSize={70}
-                minPointSize={2}
-                opacity={0.4}
-              />
-              {/* Foreground bar (Actual time studied) - Narrower, overlays on top */}
+              {/* Single bar showing actual time studied */}
               <Bar 
                 dataKey="studiedMinutes" 
                 radius={[8, 8, 8, 8]}
-                maxBarSize={50}
+                maxBarSize={60}
                 minPointSize={2}
               >
                 {reportData.map((entry, index) => (

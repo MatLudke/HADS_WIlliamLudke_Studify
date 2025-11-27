@@ -20,7 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { Activity, TimerSettings, ActiveSession } from '@/lib/types';
-import { addStudySession, startActiveSession, updateActiveSession, completeActiveSession, getActiveSession } from '@/lib/firestore';
+import { addStudySession, startActiveSession, updateActiveSession, completeActiveSession, getActiveSession, updateActivityTimerProgress } from '@/lib/firestore';
 import { useAppState } from '@/contexts/AppStateContext';
 import { simpleNotificationService } from '@/lib/simple-notifications';
 import { TimerSettingsDialog } from './timer-settings';
@@ -40,7 +40,8 @@ type TimerState = 'idle' | 'running' | 'paused';
 
 export function StudyTimerV2() {
   const [settings, setSettings] = React.useState<TimerSettings>(DEFAULT_SETTINGS);
-  const [timeLeft, setTimeLeft] = React.useState(DEFAULT_SETTINGS.pomodoroMinutes * 60);
+  const [timeLeft, setTimeLeft] = React.useState(0); // Start at 0 until activity selected
+  const [initialDuration, setInitialDuration] = React.useState(0);
   const [timerState, setTimerState] = React.useState<TimerState>('idle');
   const [mode, setMode] = React.useState<TimerMode>('pomodoro');
   const [completedPomodoros, setCompletedPomodoros] = React.useState(0);
@@ -58,7 +59,7 @@ export function StudyTimerV2() {
       try {
         const parsedSettings = JSON.parse(savedSettings);
         setSettings(parsedSettings);
-        setTimeLeft(parsedSettings.pomodoroMinutes * 60);
+        // Don't set timer - wait for activity selection
       } catch (error) {
         console.error('Error loading settings:', error);
       }
@@ -95,7 +96,9 @@ export function StudyTimerV2() {
               
               setTimerState('idle');
               setMode('pomodoro');
-              setTimeLeft(settings.pomodoroMinutes * 60);
+              const defaultDuration = settings.pomodoroMinutes * 60;
+              setTimeLeft(defaultDuration);
+              setInitialDuration(defaultDuration);
               setSelectedActivityId(null);
               setActiveSessionId(null);
               setSessionStartTime(null);
@@ -111,6 +114,8 @@ export function StudyTimerV2() {
             const timeSinceUpdate = Math.floor((now - lastUpdate) / 1000);
             const newTimeLeft = Math.max(0, activeSession.currentTime - timeSinceUpdate);
             
+            // Set initial duration from the session's original duration
+            setInitialDuration(activeSession.duration);
             setTimeLeft(newTimeLeft);
             if (newTimeLeft > 0) {
               setTimerState('running');
@@ -126,20 +131,22 @@ export function StudyTimerV2() {
     }
   }, [user, activities, settings.pomodoroMinutes, toast]);
 
-  // Timer countdown
+  // Timer countdown - Fixed memory leak by only depending on timerState
   React.useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    
-    if (timerState === 'running' && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft(prev => prev - 1);
-      }, 1000);
-    }
+    if (timerState !== 'running') return;
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [timerState, timeLeft]);
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timerState]);
 
   // Separate effect for updating active session
   React.useEffect(() => {
@@ -168,6 +175,30 @@ export function StudyTimerV2() {
     }
   }, [activities, selectedActivityId, timerState, mode]);
 
+  // Update timer when activity is selected (if timer is idle and in pomodoro mode)
+  React.useEffect(() => {
+    if (selectedActivityId && timerState === 'idle' && mode === 'pomodoro') {
+      const selectedActivity = activities.find(a => a.id === selectedActivityId);
+      if (selectedActivity && selectedActivity.estimatedDuration) {
+        // Check if there's saved progress for this activity
+        if (selectedActivity.savedTimerProgress && selectedActivity.savedTimerDuration) {
+          // Restore saved progress from DB
+          setTimeLeft(selectedActivity.savedTimerProgress);
+          setInitialDuration(selectedActivity.savedTimerDuration);
+        } else {
+          // Use activity's duration as the timer preset (converted to seconds)
+          const activityDuration = selectedActivity.estimatedDuration * 60;
+          setTimeLeft(activityDuration);
+          setInitialDuration(activityDuration);
+        }
+      }
+    } else if (!selectedActivityId && timerState === 'idle' && mode === 'pomodoro') {
+      // No activity selected - reset to 0
+      setTimeLeft(0);
+      setInitialDuration(0);
+    }
+  }, [selectedActivityId, timerState, mode, activities, settings.pomodoroMinutes]);
+
   // Handle timer completion
   React.useEffect(() => {
     if (timeLeft === 0 && timerState === 'running') {
@@ -190,8 +221,8 @@ export function StudyTimerV2() {
   };
 
   const getProgress = (): number => {
-    const totalTime = getTimerDuration(mode, settings);
-    return ((totalTime - timeLeft) / totalTime) * 100;
+    if (initialDuration === 0) return 0;
+    return ((initialDuration - timeLeft) / initialDuration) * 100;
   };
 
   const playNotificationSound = () => {
@@ -273,7 +304,9 @@ export function StudyTimerV2() {
 
       // Reset to pomodoro mode - DON'T auto-start breaks
       setMode('pomodoro');
-      setTimeLeft(getTimerDuration('pomodoro', settings));
+      const pomoDuration = getTimerDuration('pomodoro', settings);
+      setTimeLeft(pomoDuration);
+      setInitialDuration(pomoDuration);
       setSessionStartTime(null);
     } else {
       // Break completed - back to pomodoro
@@ -292,7 +325,9 @@ export function StudyTimerV2() {
       );
 
       setMode('pomodoro');
-      setTimeLeft(getTimerDuration('pomodoro', settings));
+      const pomoDuration = getTimerDuration('pomodoro', settings);
+      setTimeLeft(pomoDuration);
+      setInitialDuration(pomoDuration);
       setSessionStartTime(null);
     }
   };
@@ -343,12 +378,45 @@ export function StudyTimerV2() {
     });
   };
 
-  const handlePause = () => {
-    setTimerState('paused');
+  const handleStop = async () => {
+    // Stop the timer but KEEP current progress (like Duolingo!)
+    setTimerState('idle');
+    
+    // IMMEDIATELY save timer progress to Firestore and reload from DB
+    if (mode === 'pomodoro' && selectedActivityId && timeLeft < initialDuration) {
+      try {
+        // Save to DB
+        await updateActivityTimerProgress(selectedActivityId, timeLeft, initialDuration);
+        
+        // Reload activities to get fresh data from DB for instant sync
+        if (user) {
+          const freshActivities = await import('@/lib/firestore').then(m => m.getActivities(user.uid));
+          const freshActivity = freshActivities.find(a => a.id === selectedActivityId);
+          
+          if (freshActivity?.savedTimerProgress && freshActivity?.savedTimerDuration) {
+            // Verify DB write by loading fresh data
+            setTimeLeft(freshActivity.savedTimerProgress);
+            setInitialDuration(freshActivity.savedTimerDuration);
+            
+            toast({
+              title: "Progress Saved",
+              description: `Timer stopped at ${formatTime(freshActivity.savedTimerProgress)}`,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error saving timer progress:', error);
+        toast({
+          title: "Error Saving Progress",
+          description: "Failed to save timer state to database",
+          variant: "destructive"
+        });
+      }
+    }
   };
 
-  const handleStop = async () => {
-    // Clean up active session if it exists
+  const handleReset = async () => {
+    // Complete active session if exists (user is giving up)
     if (activeSessionId && user && sessionStartTime && mode === 'pomodoro') {
       const activity = activities.find(a => a.id === selectedActivityId);
       const actualDuration = Math.floor((Date.now() - sessionStartTime.getTime()) / 1000 / 60);
@@ -360,27 +428,49 @@ export function StudyTimerV2() {
           endAt: new Date(),
           duration: actualDuration,
           mode: 'pomodoro',
-          notes: '',
+          notes: 'Session reset',
           subject: activity?.subject || 'Unknown'
         });
       }
       setActiveSessionId(null);
     }
 
+    // Clear saved progress from database and verify
+    if (mode === 'pomodoro' && selectedActivityId) {
+      try {
+        await updateActivityTimerProgress(selectedActivityId, null, null);
+        
+        // Reload from DB to verify clear
+        if (user) {
+          const freshActivities = await import('@/lib/firestore').then(m => m.getActivities(user.uid));
+          const freshActivity = freshActivities.find(a => a.id === selectedActivityId);
+          
+          // Set to activity's default duration
+          if (freshActivity?.estimatedDuration) {
+            const duration = freshActivity.estimatedDuration * 60;
+            setTimeLeft(duration);
+            setInitialDuration(duration);
+          }
+        }
+      } catch (error) {
+        console.error('Error clearing timer progress:', error);
+      }
+    } else {
+      // No activity - reset to 0
+      setTimerState('idle');
+      setTimeLeft(0);
+      setInitialDuration(0);
+    }
+    
     setTimerState('idle');
-    setTimeLeft(getTimerDuration(mode, settings));
-    setSessionStartTime(null);
-  };
-
-  const handleReset = () => {
-    setTimerState('idle');
-    setTimeLeft(getTimerDuration(mode, settings));
     setSessionStartTime(null);
   };
 
   const startBreak = (breakType: 'shortBreak' | 'longBreak') => {
     setMode(breakType);
-    setTimeLeft(getTimerDuration(breakType, settings));
+    const breakDuration = getTimerDuration(breakType, settings);
+    setTimeLeft(breakDuration);
+    setInitialDuration(breakDuration);
     setTimerState('idle');
     setSessionStartTime(null);
   };
@@ -389,8 +479,14 @@ export function StudyTimerV2() {
     setSettings(newSettings);
     localStorage.setItem('pomodoroSettings', JSON.stringify(newSettings));
     
-    if (timerState === 'idle') {
-      setTimeLeft(getTimerDuration(mode, newSettings));
+    // Only update timer if there's an activity selected
+    if (timerState === 'idle' && selectedActivityId && mode === 'pomodoro') {
+      const selectedActivity = activities.find(a => a.id === selectedActivityId);
+      if (selectedActivity?.estimatedDuration) {
+        const activityDuration = selectedActivity.estimatedDuration * 60;
+        setTimeLeft(activityDuration);
+        setInitialDuration(activityDuration);
+      }
     }
   };
 
@@ -449,29 +545,40 @@ export function StudyTimerV2() {
 
           {/* Timer Display */}
           <div className="text-center space-y-4">
-            <motion.div
-              className="text-5xl font-bold font-mono text-foreground"
-              key={timeLeft}
-              initial={{ scale: 1.02 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: 0.2 }}
-            >
-              {formatTime(timeLeft)}
-            </motion.div>
+            {selectedActivityId || mode !== 'pomodoro' ? (
+              <>
+                <motion.div
+                  className="text-5xl font-bold font-mono text-foreground"
+                  key={timeLeft}
+                  initial={{ scale: 1.02 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {formatTime(timeLeft)}
+                </motion.div>
 
-            {/* Simple Progress Bar */}
-            <div className="w-full bg-muted rounded-full h-2">
-              <motion.div
-                className={`h-2 rounded-full transition-all duration-1000 ${
-                  mode === 'pomodoro' ? 'bg-primary' : 'bg-secondary'
-                }`}
-                style={{ width: `${getProgress()}%` }}
-              />
-            </div>
+                {/* Simple Progress Bar */}
+                <div className="w-full bg-muted rounded-full h-2">
+                  <motion.div
+                    className={`h-2 rounded-full transition-all duration-1000 ${
+                      mode === 'pomodoro' ? 'bg-primary' : 'bg-secondary'
+                    }`}
+                    style={{ width: `${getProgress()}%` }}
+                  />
+                </div>
 
-            <div className="text-sm text-muted-foreground">
-              {Math.round(getProgress())}% complete
-            </div>
+                <div className="text-sm text-muted-foreground">
+                  {Math.round(getProgress())}% complete
+                </div>
+              </>
+            ) : (
+              <div className="py-8">
+                <Clock className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-muted-foreground text-sm">
+                  Select an activity to begin
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Current Activity Display */}
@@ -484,7 +591,7 @@ export function StudyTimerV2() {
             </div>
           )}
 
-          {/* Timer Controls */}
+          {/* Timer Controls - Duolingo Style */}
           <div className="flex justify-center space-x-2">
             <AnimatePresence mode="wait">
               {timerState === 'idle' ? (
@@ -492,39 +599,34 @@ export function StudyTimerV2() {
                   onClick={handleStart}
                   size="lg"
                   className="px-8"
+                  disabled={!selectedActivityId && mode === 'pomodoro'}
                 >
                   <Play className="w-4 h-4 mr-2" />
-                  Start
+                  {timeLeft < initialDuration ? 'Resume' : 'Start'}
                 </Button>
               ) : (
-                <div className="flex space-x-2">
-                  <Button
-                    onClick={timerState === 'running' ? handlePause : handleStart}
-                    size="lg"
-                  >
-                    {timerState === 'running' ? (
-                      <Pause className="w-4 h-4" />
-                    ) : (
-                      <Play className="w-4 h-4" />
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleStop}
-                    size="lg"
-                    variant="outline"
-                  >
-                    <Square className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    onClick={handleReset}
-                    size="lg"
-                    variant="ghost"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </Button>
-                </div>
+                <Button
+                  onClick={handleStop}
+                  size="lg"
+                  className="px-8"
+                >
+                  <Square className="w-4 h-4 mr-2" />
+                  Stop
+                </Button>
               )}
             </AnimatePresence>
+            
+            {/* Reset button - always visible */}
+            {timeLeft < initialDuration && timerState === 'idle' && (
+              <Button
+                onClick={handleReset}
+                size="lg"
+                variant="ghost"
+                title="Start over from beginning"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </Button>
+            )}
           </div>
 
           {/* Break Buttons - Only show when in pomodoro mode and idle */}

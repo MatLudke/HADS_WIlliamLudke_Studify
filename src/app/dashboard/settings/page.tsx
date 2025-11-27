@@ -176,7 +176,7 @@ export default function SettingsPage() {
   return (
     <>
       <Header title="Settings" />
-      <main className="flex-1 overflow-auto p-4 md:p-6 pt-40">
+      <main className="flex-1 overflow-auto p-6 md:p-8 pt-24 md:pt-32 lg:pt-40">
         <motion.div 
           className="mx-auto w-full max-w-2xl"
           initial={{ opacity: 0, y: 20 }}

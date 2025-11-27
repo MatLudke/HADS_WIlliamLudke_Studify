@@ -48,39 +48,58 @@ body {
   }
 
   .dark {
-    --background: 240 6% 10%;
-    --foreground: 0 0% 98%;
-    --card: 240 4% 12%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 6% 10%;
-    --popover-foreground: 0 0% 98%;
+    /* Base colors - proper contrast ratios for WCAG AA compliance */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 14%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 14%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Primary - vibrant blue with proper contrast */
     --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4% 12%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 4% 12%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 4% 12%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142 70% 45%;
-    --success-foreground: 0 0% 100%;
-    --border: 240 4% 18%;
-    --input: 240 4% 18%;
+    --primary-foreground: 222 47% 11%;
+    
+    /* Secondary - subtle elevation */
+    --secondary: 217 19% 27%;
+    --secondary-foreground: 210 40% 98%;
+    
+    /* Muted - for less prominent UI elements */
+    --muted: 217 19% 18%;
+    --muted-foreground: 215 20% 65%;
+    
+    /* Accent - slightly elevated surfaces */
+    --accent: 217 19% 27%;
+    --accent-foreground: 210 40% 98%;
+    
+    /* Destructive - red with sufficient contrast */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Success - green optimized for dark mode */
+    --success: 142 71% 45%;
+    --success-foreground: 210 40% 98%;
+    
+    /* Borders and inputs - subtle but visible */
+    --border: 217 19% 27%;
+    --input: 217 19% 27%;
     --ring: 217 91% 60%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
+    
+    /* Chart colors - vibrant and distinguishable in dark mode */
+    --chart-1: 217 91% 60%;
+    --chart-2: 142 71% 45%;
+    --chart-3: 38 92% 50%;
     --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 6% 10%;
-    --sidebar-foreground: 0 0% 98%;
+    --chart-5: 340 82% 52%;
+    
+    /* Sidebar - cohesive with main theme */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 4% 12%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 4% 18%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 19% 27%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 19% 27%;
     --sidebar-ring: 217 91% 60%;
   }
 }

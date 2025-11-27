@@ -11,6 +11,9 @@ export type Activity = {
   goalTarget?: number; // target minutes for the goal period
   goalStartDate?: Date; // when the goal period started
   goalRemindersEnabled?: boolean; // whether to send email reminders
+  // Timer progress (Duolingo-style: keeps progress when stopped)
+  savedTimerProgress?: number; // time left in seconds when user stopped
+  savedTimerDuration?: number; // original duration for this saved progress
 };
 
 export type StudySession = {

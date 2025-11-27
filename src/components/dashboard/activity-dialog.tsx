@@ -31,12 +31,22 @@ import { useAppState } from "@/contexts/AppStateContext"
 const activitySchema = z.object({
   title: z.string().min(1, "Title is required."),
   subject: z.string().min(1, "Subject is required."),
-  estimatedDuration: z.coerce.number().min(1, "Duration must be at least 1 minute."),
+  estimatedDuration: z.coerce.number().min(1, "Session length must be at least 1 minute."),
   priority: z.enum(["low", "medium", "high"]),
-  // Goal fields (optional)
-  goalType: z.enum(["none", "daily", "weekly", "monthly"]).optional(),
-  goalTarget: z.coerce.number().min(0).optional(),
+  // Weekly streak goal (optional)
+  goalType: z.enum(["none", "weekly"]).optional(),
+  goalTarget: z.coerce.number().min(0).max(7).optional(), // Sessions per week (0-7)
   goalRemindersEnabled: z.boolean().optional(),
+}).refine((data) => {
+  // If no goal is set, skip validation
+  if (!data.goalType || data.goalType === "none") return true;
+  if (!data.goalTarget || data.goalTarget === 0) return true;
+  
+  // Goal must be at least 1 session per week
+  return data.goalTarget >= 1;
+}, {
+  message: "Weekly goal must be at least 1 session per week",
+  path: ["goalTarget"],
 });
 
 type ActivityFormData = z.infer<typeof activitySchema>;
@@ -65,10 +75,10 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
     defaultValues: {
       title: "",
       subject: "",
-      estimatedDuration: 60,
+      estimatedDuration: 25,
       priority: "medium",
       goalType: "none",
-      goalTarget: 0,
+      goalTarget: 3, // Default: 3 sessions per week
       goalRemindersEnabled: false,
     },
   });
@@ -118,17 +128,27 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
       };
 
       if (isEditing && activity) {
-        // Optimistically update the state
-        updateActivityInState(activity.id, { ...data, ...goalData, updatedAt: new Date() });
-        await updateActivity(activity.id, { ...data, ...goalData, status: activity.status });
-        toast({ title: "Activity updated successfully!" });
+        // Save previous state for rollback
+        const previousState = { ...activity };
+        
+        try {
+          // Optimistically update the state
+          updateActivityInState(activity.id, { ...data, ...goalData });
+          
+          // Server update
+          await updateActivity(activity.id, { ...data, ...goalData, status: activity.status });
+          toast({ title: "Activity updated successfully!" });
+        } catch (updateError) {
+          // Rollback on error
+          updateActivityInState(activity.id, previousState);
+          throw updateError; // Re-throw to be caught by outer catch block
+        }
       } else {
         const newActivity: Activity = {
           id: '', // Will be set by Firestore
           ...data,
           ...goalData,
           status: 'todo',
-          updatedAt: new Date(),
           userId: user.uid
         };
         
@@ -139,8 +159,8 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
         addActivityToState({ ...newActivity, id: activityId });
         toast({ 
           title: "Activity added successfully!",
-          description: goalData.goalType !== "none" 
-            ? `${goalData.goalType} goal: ${goalData.goalTarget} minutes` 
+          description: goalData.goalType === "weekly" 
+            ? `🔥 Weekly goal: ${goalData.goalTarget} session${goalData.goalTarget > 1 ? 's' : ''}/week` 
             : undefined
         });
       }
@@ -235,13 +255,13 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="duration" className="text-sm font-medium">
-                          Duration <span className="text-destructive">*</span>
+                          Session Length <span className="text-destructive">*</span>
                         </Label>
                         <div className="relative">
                           <Input 
                             id="duration" 
                             type="number" 
-                            placeholder="60"
+                            placeholder="25"
                             {...register("estimatedDuration")} 
                             className="transition-all duration-200 focus:ring-2 pr-12"
                           />
@@ -249,6 +269,9 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
                             min
                           </span>
                         </div>
+                        <p className="text-xs text-muted-foreground">
+                          ⏱️ Timer preset for this activity
+                        </p>
                         <AnimatePresence>
                           {errors.estimatedDuration && (
                             <motion.p 
@@ -302,7 +325,7 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
 
                     <div className="space-y-2">
                       <Label htmlFor="goalType" className="text-sm font-medium">
-                        Set a goal period
+                        Weekly Streak Goal
                       </Label>
                       <Controller
                         name="goalType"
@@ -313,16 +336,14 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
                               <SelectValue placeholder="No goal" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">⚪ No goal</SelectItem>
-                              <SelectItem value="daily">📅 Daily Goal</SelectItem>
-                              <SelectItem value="weekly">📆 Weekly Goal</SelectItem>
-                              <SelectItem value="monthly">🗓️ Monthly Goal</SelectItem>
+                              <SelectItem value="none">⚪ No goal (just track)</SelectItem>
+                              <SelectItem value="weekly">🔥 Weekly Streak Goal</SelectItem>
                             </SelectContent>
                           </Select>
                         )}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Track your study progress over time
+                        Complete your weekly sessions to maintain your streak! 🔥
                       </p>
                     </div>
 
@@ -337,24 +358,33 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
                         >
                           <div className="space-y-2">
                             <Label htmlFor="goalTarget" className="text-sm font-medium">
-                              Target minutes per {goalType}
+                              Sessions per week
                             </Label>
-                            <div className="relative">
-                              <Input 
-                                id="goalTarget" 
-                                type="number" 
-                                placeholder="e.g., 60"
-                                {...register("goalTarget")} 
-                                className="transition-all duration-200 focus:ring-2 pr-12"
-                              />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                                min
-                              </span>
-                            </div>
+                            <Controller
+                              name="goalTarget"
+                              control={control}
+                              render={({ field }) => (
+                                <Select 
+                                  onValueChange={(value) => field.onChange(parseInt(value))} 
+                                  defaultValue={field.value?.toString() || "3"}
+                                >
+                                  <SelectTrigger className="transition-all duration-200 focus:ring-2">
+                                    <SelectValue placeholder="Select sessions" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1">1 session/week</SelectItem>
+                                    <SelectItem value="2">2 sessions/week</SelectItem>
+                                    <SelectItem value="3">3 sessions/week (recommended)</SelectItem>
+                                    <SelectItem value="4">4 sessions/week</SelectItem>
+                                    <SelectItem value="5">5 sessions/week</SelectItem>
+                                    <SelectItem value="6">6 sessions/week</SelectItem>
+                                    <SelectItem value="7">7 sessions/week (daily)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
                             <p className="text-xs text-muted-foreground">
-                              {goalType === "daily" && "How many minutes you want to study each day"}
-                              {goalType === "weekly" && "Total minutes you want to study this week"}
-                              {goalType === "monthly" && "Total minutes you want to study this month"}
+                              🔥 Complete this many sessions to keep your streak alive!
                             </p>
                           </div>
 
@@ -370,7 +400,7 @@ export function ActivityDialog({ open, onOpenChange, activity, onSuccess }: Acti
                                 📧 Email reminders
                               </Label>
                               <p className="text-xs text-muted-foreground mt-1">
-                                Get notified if you&apos;re falling behind on your goal
+                                Get notified if your streak is at risk 🔥
                               </p>
                             </div>
                           </div>

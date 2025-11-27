@@ -30,7 +30,7 @@ import {
 import type { Activity } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { ActivityDialog } from "./activity-dialog"
-import { deleteActivity } from "@/lib/firestore"
+import { deleteActivity, getActiveSession } from "@/lib/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAppState } from "@/contexts/AppStateContext"
@@ -53,6 +53,25 @@ export function ActivityList() {
 
     const handleDelete = async (id: string) => {
         try {
+            // Check for active session before deleting
+            if (user) {
+                const activeSession = await getActiveSession(user.uid);
+                if (activeSession && activeSession.activityId === id) {
+                    toast({
+                        variant: "destructive",
+                        title: "Cannot Delete Activity",
+                        description: "Please stop the active timer before deleting this activity.",
+                    });
+                    return;
+                }
+            }
+            
+            // Confirm deletion
+            const activity = activities.find(a => a.id === id);
+            if (!confirm(`Delete "${activity?.title}"? This will also delete all associated study sessions.`)) {
+                return;
+            }
+            
             // Optimistically remove from state for immediate UI feedback
             removeActivityFromState(id);
             await deleteActivity(id);
